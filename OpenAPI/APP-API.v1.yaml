@@ -3,7 +3,7 @@ info:
   title: APP-API
   version: '1.0'
   contact:
-    email: bylukee1@gmail.com
+    email: lukas.koenig02@gmail.com
     name: Lukas König
   description: API for communication between the MRAS WebApp/App and the Server
 servers:
@@ -673,6 +673,253 @@ paths:
       security:
         - bearerAuth: []
         - api_secret: []
+  '/speaker/group/{id}':
+    parameters:
+      - schema:
+          type: string
+        name: id
+        in: path
+        required: true
+    get:
+      summary: Your GET endpoint
+      tags: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gorup:
+                    $ref: '#/components/schemas/SpeakerGroup'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+      operationId: getSpeakerGroupByID
+      description: Get speaker Group by ID
+      security:
+        - bearerAuth: []
+    delete:
+      summary: ''
+      operationId: deleteSpeakerGroupByID
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+      description: Delete Speaker Group by ID
+      security:
+        - bearerAuth: []
+  /speaker/group:
+    get:
+      summary: Your GET endpoint
+      tags: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  groups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SpeakerGroup'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+      operationId: getAllSpeakerGroups
+      security:
+        - bearerAuth: []
+      description: Get All Speaker Groups
+    post:
+      summary: ''
+      operationId: createSpeakerGroup
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group:
+                    $ref: '#/components/schemas/SpeakerGroup'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                group:
+                  $ref: '#/components/schemas/SpeakerGroup'
+      description: Create new Speakergroup
+    patch:
+      summary: ''
+      operationId: updateSpeakerGroup
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group:
+                    $ref: '#/components/schemas/SpeakerGroup'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    $ref: '#/components/schemas/Error'
+      description: Update Specific Speaker Group
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                group:
+                  $ref: '#/components/schemas/SpeakerGroup'
 components:
   schemas:
     Room:
@@ -711,7 +958,7 @@ components:
               type: number
             'y':
               type: number
-        roomid:
+        room_id:
           type: string
     User:
       title: User
@@ -737,27 +984,31 @@ components:
           type: boolean
         canedit:
           type: boolean
-        speakers:
+        speaker_ids:
           type: array
           description: speaker id
           items:
             type: string
-        rooms:
+        room_ids:
           type: array
           description: room id
+          items:
+            type: string
+        speakergroup_ids:
+          type: array
           items:
             type: string
     SpeakerGroup:
       title: SpeakerGroup
       type: object
+      description: ''
       properties:
         id:
           type: string
         name:
           type: string
-        speakers:
-          $ref: '#/components/schemas/Speaker'
-      description: ''
+        speaker_ids:
+          type: string
   securitySchemes:
     bearerAuth:
       type: http

@@ -121,6 +121,10 @@ begin
         else
             update speaker set alive = true where id = speaker_id;
         end if;
+
+        if finished = 1 then
+			LEAVE updAlive;
+	    end if;
     end loop updAlive;
     close curId;
 end;

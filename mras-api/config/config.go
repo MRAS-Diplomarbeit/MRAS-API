@@ -10,8 +10,8 @@ var (
 	Port  int
 )
 
-func Init() error {
-	v1, err := readConfig(".env", map[string]interface{}{
+func init() {
+	v1, _ := readConfig(".env", map[string]interface{}{
 		"port": 3000,
 		"mysql": map[string]interface{}{
 			"host":     "localhost",
@@ -27,15 +27,10 @@ func Init() error {
 		},
 	})
 
-	if err != nil {
-		return err
-	}
-
 	Port = v1.GetInt("server.port")
 	MySQL = v1.GetStringMap("server.mysql")
 	Redis = v1.GetStringMap("server.redis")
 
-	return nil
 }
 
 func readConfig(filename string, defaults map[string]interface{}) (*viper.Viper, error) {

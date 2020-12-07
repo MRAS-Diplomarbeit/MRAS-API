@@ -1,27 +1,18 @@
 package main
 
 import (
-	"database/sql"
-	"github.com/go-redis/redis/v8"
-	"lukaskoenig.at/mras-api/config"
-	"lukaskoenig.at/mras-api/db"
+	"github.com/mras-diplomarbeit/mras-api/db/mysql"
+	"github.com/mras-diplomarbeit/mras-api/db/redis"
+	log "github.com/mras-diplomarbeit/mras-api/logger"
 )
 
-var Con *sql.Conn
-var Rdb *redis.Client
+func init() {
+
+}
 
 func main() {
-	err := config.Init()
-	if err != nil {
-		panic(err)
-	}
-
-	Con, err := db.MySQLInit()
-	if err != nil {
-		panic(err)
-	}
-	Con.Ping()
-
-	db.RedisInit()
+	mysql.Con.Ping()
+	redis.Rdb.Ping(redis.Ctx)
+	log.ErrorLogger.Println("You Muppet!")
 
 }

@@ -99,6 +99,7 @@ create table permspeakergroups
     foreign key (perm_id) references permissions (id),
     foreign key (speakergroup_id) references speakergroup (id)
 );
+
 drop procedure if exists checkifalive;
 create procedure checkifalive()
 begin
@@ -135,14 +136,3 @@ create event alivecheck
     on completion PRESERVE
     do
     CALL checkifalive();
-
-
-
-
-
-
-
-
-
-
-

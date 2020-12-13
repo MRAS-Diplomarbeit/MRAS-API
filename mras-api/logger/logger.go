@@ -17,8 +17,10 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
 	logmw := io.MultiWriter(os.Stdout, file)
 	logerrmw := io.MultiWriter(os.Stderr, file)
+
 	InfoLogger = log.New(logmw, "INFO: ", log.LstdFlags)
 	WarningLogger = log.New(logmw, "WARNING: ", log.LstdFlags|log.Lshortfile)
 	ErrorLogger = log.New(logerrmw, "ERROR: ", log.LstdFlags|log.Lshortfile)

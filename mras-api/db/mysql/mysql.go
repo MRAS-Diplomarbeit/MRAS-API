@@ -5,7 +5,7 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mras-diplomarbeit/mras-api/config"
-	log "github.com/mras-diplomarbeit/mras-api/logger"
+	. "github.com/mras-diplomarbeit/mras-api/logger"
 )
 
 var Con *sql.DB
@@ -22,13 +22,11 @@ func init() {
 	var err error
 	Con, err = sql.Open("mysql", sqlInfo)
 	if err != nil {
-		log.ErrorLogger.Println(err)
-		panic(err)
+		Log.Panic(err)
 	}
 	err = Con.Ping()
 	if err != nil {
-		log.ErrorLogger.Println(err)
-		panic(err)
+		Log.Panic(err)
 	}
-	log.InfoLogger.Println("MySQL connection established!")
+	Log.Info("MySQL connection established!")
 }

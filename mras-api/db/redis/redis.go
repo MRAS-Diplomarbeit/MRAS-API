@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/mras-diplomarbeit/mras-api/config"
-	log "github.com/mras-diplomarbeit/mras-api/logger"
+	. "github.com/mras-diplomarbeit/mras-api/logger"
 )
 
 var Ctx = context.Background()
@@ -20,10 +20,9 @@ func init() {
 
 	err := Rdb.Ping(Ctx).Err()
 	if err != nil {
-		log.ErrorLogger.Println(err)
-		panic(err)
+		Log.Panic(err)
 	}
 
-	log.InfoLogger.Println("Redis connection established!")
+	Log.Info("Redis connection established!")
 
 }

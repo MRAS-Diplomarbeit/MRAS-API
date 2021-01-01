@@ -1,27 +1,58 @@
 package logger
 
 import (
-	"io"
-	"log"
+	"github.com/mras-diplomarbeit/mras-api/config"
+	"github.com/rifflock/lfshook"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/writer"
+	"io/ioutil"
 	"os"
 )
 
-var (
-	WarningLogger *log.Logger
-	InfoLogger    *log.Logger
-	ErrorLogger   *log.Logger
-)
+var Log *logrus.Logger
 
 func init() {
-	file, err := os.OpenFile("logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+
+	Log = logrus.New()
+	Log.SetOutput(ioutil.Discard)
+
+	level, err := logrus.ParseLevel(config.Loglevel)
 	if err != nil {
-		panic(err)
+		Log.SetLevel(logrus.InfoLevel)
+		Log.Error("Error when parsing logrus level from config")
+	} else {
+		Log.SetLevel(level)
 	}
 
-	logmw := io.MultiWriter(os.Stdout, file)
-	logerrmw := io.MultiWriter(os.Stderr, file)
+	Log.SetFormatter(&logrus.TextFormatter{
+		ForceColors:     true,
+		DisableColors:   false,
+		FullTimestamp:   true,
+		TimestampFormat: "2006-01-02 15:04:05",
+	})
 
-	InfoLogger = log.New(logmw, "INFO: ", log.LstdFlags)
-	WarningLogger = log.New(logmw, "WARNING: ", log.LstdFlags|log.Lshortfile)
-	ErrorLogger = log.New(logerrmw, "ERROR: ", log.LstdFlags|log.Lshortfile)
+	Log.AddHook(&writer.Hook{
+		Writer: os.Stderr,
+		LogLevels: []logrus.Level{
+			logrus.PanicLevel,
+			logrus.FatalLevel,
+			logrus.ErrorLevel,
+			logrus.WarnLevel,
+		},
+	})
+
+	Log.AddHook(&writer.Hook{
+		Writer: os.Stdout,
+		LogLevels: []logrus.Level{
+			logrus.InfoLevel,
+			logrus.DebugLevel,
+		},
+	})
+
+	Log.AddHook(lfshook.NewHook(
+		config.LogLocation,
+		&logrus.JSONFormatter{
+			TimestampFormat: "2006-01-02 15:04:05",
+		},
+	))
 }

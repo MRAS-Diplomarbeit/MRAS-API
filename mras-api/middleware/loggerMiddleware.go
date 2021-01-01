@@ -1,16 +1,52 @@
 package middleware
 
 import (
-	log "github.com/mras-diplomarbeit/mras-api/logger"
-	"net/http"
+	"github.com/gin-gonic/gin"
+	. "github.com/mras-diplomarbeit/mras-api/logger"
 	"time"
 )
 
-func LoggerMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func LoggerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
 		startTime := time.Now()
-		next.ServeHTTP(w, r)
-		duration := time.Now().Sub(startTime)
-		go log.InfoLogger.Println(r.Method + " " + r.RequestURI + " " + r.RemoteAddr + " "+ duration.String())
-	})
+
+		c.Next()
+
+		endTime := time.Now()
+		latencyTime := endTime.Sub(startTime)
+
+		reqMethod := c.Request.Method
+		reqUri := c.Request.RequestURI
+		statusCode := c.Writer.Status()
+		clientIP := c.ClientIP()
+		//"| %3d | %13v | %15s | %s | %s |"
+
+		if statusCode == 200 {
+			Log.Infof("| %d | %v | %s | %s | %s |",
+				statusCode,
+				latencyTime,
+				clientIP,
+				reqMethod,
+				reqUri,
+			)
+		} else if statusCode >= 500 {
+			Log.Errorf("| %d | %v | %s | %s | %s |",
+				statusCode,
+				latencyTime,
+				clientIP,
+				reqMethod,
+				reqUri,
+			)
+		} else {
+			Log.Warnf("| %d | %v | %s | %s | %s |",
+				statusCode,
+				latencyTime,
+				clientIP,
+				reqMethod,
+				reqUri,
+			)
+		}
+
+	}
 }

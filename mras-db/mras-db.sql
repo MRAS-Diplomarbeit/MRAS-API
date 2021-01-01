@@ -1,6 +1,9 @@
-drop database if exists mras;
-SET GLOBAL event_scheduler = ON;
-create database mras;
+drop
+    database if exists mras;
+SET
+    GLOBAL event_scheduler = ON;
+create
+    database mras;
 use mras;
 
 create table permissions
@@ -13,12 +16,14 @@ create table permissions
 
 create table user
 (
-    id         INT         NOT NULL UNIQUE AUTO_INCREMENT,
-    username   VARCHAR(50) NOT NULL UNIQUE,
-    password   VARCHAR(64) NOT NULL,
-    created_ad TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    avatar_id  VARCHAR(100),
-    perm_id    INT         NOT NULL,
+    id            INT         NOT NULL UNIQUE AUTO_INCREMENT,
+    username      VARCHAR(50) NOT NULL UNIQUE,
+    password      VARCHAR(64) NOT NULL,
+    created_ad    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    avatar_id     VARCHAR(100),
+    perm_id       INT         NOT NULL,
+    refresh_token TEXT,
+    reset_code    TEXT        NOT NULL,
     FOREIGN KEY (perm_id) REFERENCES permissions (id),
     primary key (id)
 );
@@ -103,35 +108,52 @@ create table permspeakergroups
 drop procedure if exists checkifalive;
 create procedure checkifalive()
 begin
-    declare speaker_id int;
-    declare diff int;
-    declare finished integer default 0;
-    declare curId cursor for
-        SELECT id from speaker;
+    declare
+        speaker_id int;
+    declare
+        diff int;
+    declare
+        finished integer default 0;
+    declare
+        curId cursor for
+            SELECT id
+            from speaker;
 
-    declare continue handler for not found set finished = 1;
+    declare
+        continue handler for not found set finished = 1;
 
     open curId;
 
-    updAlive:
+    updAlive
+    :
     loop
         FETCH curId into speaker_id;
-        select TIMESTAMPDIFF(SQL_TSI_SECOND, (SELECT last_lifesign from speaker), CURRENT_TIMESTAMP) into diff;
-        if diff >= 30 then
-            update speaker set alive = false where id = speaker_id;
+        select TIMESTAMPDIFF(SQL_TSI_SECOND, (SELECT last_lifesign from speaker), CURRENT_TIMESTAMP)
+        into diff;
+        if
+            diff >= 30 then
+            update speaker
+            set alive = false
+            where id = speaker_id;
         else
-            update speaker set alive = true where id = speaker_id;
+            update speaker
+            set alive = true
+            where id = speaker_id;
         end if;
 
-        if finished = 1 then
-			LEAVE updAlive;
-	    end if;
-    end loop updAlive;
+        if
+            finished = 1 then
+            LEAVE updAlive;
+        end if;
+    end loop
+        updAlive;
     close curId;
 end;
 
-drop event if exists alivecheck;
-create event alivecheck
+drop
+    event if exists alivecheck;
+create
+    event alivecheck
     on schedule every 30 SECOND
     on completion PRESERVE
     do

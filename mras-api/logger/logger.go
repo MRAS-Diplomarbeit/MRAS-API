@@ -11,6 +11,8 @@ import (
 
 var Log *logrus.Logger
 
+type Fields map[string]interface{}
+
 func init() {
 
 	Log = logrus.New()
@@ -55,4 +57,5 @@ func init() {
 			TimestampFormat: "2006-01-02 15:04:05",
 		},
 	))
+
 }

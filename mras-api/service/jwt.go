@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
+	"github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -46,7 +47,7 @@ func (service *jwtServices) GenerateToken(userID string, deviceID string) (strin
 	//encoded string
 	t, err := token.SignedString([]byte(service.secretKey))
 	if err != nil {
-		Log.Error("Error Generating JWT Token ", err)
+		Log.WithFields(logrus.Fields{"module": "jwt"}).Error("Error Generating JWT Token ", err)
 		return "", err
 	}
 	return t, nil
@@ -57,10 +58,10 @@ func (service *jwtServices) ValidateToken(encodedToken string) (*jwt.Token, erro
 	return jwt.Parse(encodedToken, func(token *jwt.Token) (interface{}, error) {
 		if _, isvalid := token.Method.(*jwt.SigningMethodHMAC); !isvalid {
 			err := fmt.Errorf("Invalid token", token.Header["alg"])
-			Log.Error(err)
+			Log.WithFields(logrus.Fields{"module": "jwt"}).Error(err)
 			return nil, err
 		}
-		Log.Debug("Successfully Validated JWT")
+		Log.WithFields(logrus.Fields{"module": "jwt"}).Debug("Successfully Validated JWT")
 		return []byte(service.secretKey), nil
 	})
 }

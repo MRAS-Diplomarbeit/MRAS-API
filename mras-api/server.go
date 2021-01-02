@@ -15,8 +15,8 @@ func init() {
 }
 
 func main() {
-	defer mysql.Con.Close()
 	defer redis.Rdb.Close()
+	mysql.InitDB()
 
 	router := gin.New()
 
@@ -32,7 +32,7 @@ func main() {
 	})
 
 	noAuthRouter.GET("/test", handler.TestHandler)
-	noAuthRouter.GET("/user/login", handler.LoginHandler)
+	noAuthRouter.POST("/user/login", handler.LoginHandler)
 
 	authRouter := router.Group("/api/v1")
 

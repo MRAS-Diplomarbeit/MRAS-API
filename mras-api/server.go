@@ -7,7 +7,9 @@ import (
 	"github.com/mras-diplomarbeit/mras-api/db/mysql"
 	"github.com/mras-diplomarbeit/mras-api/db/redis"
 	"github.com/mras-diplomarbeit/mras-api/handler"
+	. "github.com/mras-diplomarbeit/mras-api/logger"
 	"github.com/mras-diplomarbeit/mras-api/middleware"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {
@@ -15,10 +17,19 @@ func init() {
 }
 
 func main() {
-	defer redis.Rdb.Close()
-	mysql.InitDB()
 
 	router := gin.New()
+
+	_, err := mysql.GormService().Connect(config.MySQL).InitializeModel()
+	if err != nil {
+		Log.WithFields(logrus.Fields{"module": "gorm"}).Panic(err)
+	}
+
+	redis, err := redis.RedisDBService().Initialize(config.Redis)
+	if err != nil {
+		Log.WithFields(logrus.Fields{"module": "redis"}).Panic(err)
+	}
+	defer redis.Rdb.Close()
 
 	router.Use(gin.Recovery())
 	router.Use(middleware.LoggerMiddleware())

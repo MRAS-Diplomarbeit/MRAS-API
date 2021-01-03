@@ -6,23 +6,35 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/mras-diplomarbeit/mras-api/config"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
+	"github.com/sirupsen/logrus"
 )
 
-var Ctx = context.Background()
-var Rdb *redis.Client
+type RedisService interface {
+	Initialize(conf map[string]interface{}) (*redisServices, error)
+}
+type redisServices struct {
+	Ctx context.Context
+	Rdb *redis.Client
+}
 
-func init() {
-	Rdb = redis.NewClient(&redis.Options{
+func RedisDBService() *redisServices {
+	return &redisServices{}
+}
+
+func (service *redisServices) Initialize(conf map[string]interface{}) (*redisServices, error) {
+	service.Ctx = context.Background()
+	service.Rdb = redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", config.Redis["host"], config.Redis["port"]),
-		Password: config.Redis["password"].(string),
-		DB:       config.Redis["db"].(int),
+		Password: conf["password"].(string),
+		DB:       conf["db"].(int),
 	})
 
-	err := Rdb.Ping(Ctx).Err()
+	err := service.Rdb.Ping(service.Ctx).Err()
+
 	if err != nil {
-		Log.Panic(err)
+		return service, err
 	}
 
-	Log.Info("Redis connection established!")
-
+	Log.WithFields(logrus.Fields{"module": "redis"}).Info("Redis connection established!")
+	return service, nil
 }

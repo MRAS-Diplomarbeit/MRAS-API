@@ -6,7 +6,7 @@ import (
 	"github.com/mras-diplomarbeit/mras-api/config"
 	"github.com/mras-diplomarbeit/mras-api/db/redis"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
-	"github.com/mras-diplomarbeit/mras-api/service"
+	"github.com/mras-diplomarbeit/mras-api/utils"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
@@ -28,7 +28,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 		tokenString := authHeader[len("Bearer "):]
 
-		token, _ := service.JWTAuthService(config.JWTAccessSecret).ValidateToken(tokenString)
+		token, _ := utils.JWTAuthService(config.JWTAccessSecret).ValidateToken(tokenString)
 		if token.Valid {
 
 			_, err := rdis.Get(tokenString)

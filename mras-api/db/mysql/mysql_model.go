@@ -16,10 +16,10 @@ type Permissions struct {
 
 type User struct {
 	ID           int32        `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
-	Username     string       `gorm:"size:50;unique" json:"username"`
+	Username     string       `gorm:"size:15;unique" json:"username"`
 	Password     string       `gorm:"size:64" json:"-"`
 	CreatedAt    time.Time    `json:"-"`
-	AvatarID     string       `gorm:"size:10" json:"avatar_id"`
+	AvatarID     string       `gorm:"size:10;default:default" json:"avatar_id"`
 	PermID       int32        `json:"-"`
 	Permissions  Permissions  `gorm:"foreignKey:PermID" json:"-"`
 	RefreshToken string       `json:"-"`

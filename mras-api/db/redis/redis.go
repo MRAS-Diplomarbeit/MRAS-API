@@ -27,7 +27,7 @@ func (service *RedisServices) Initialize(conf map[string]interface{}) (*RedisSer
 		Addr:     fmt.Sprintf("%s:%d", config.Redis["host"], config.Redis["port"]),
 		Password: conf["password"].(string),
 		DB:       conf["db"].(int),
-	})
+	}).WithTimeout(2 * time.Second)
 
 	err := service.rdb.Ping(service.ctx).Err()
 	if err != nil {
@@ -39,17 +39,17 @@ func (service *RedisServices) Initialize(conf map[string]interface{}) (*RedisSer
 }
 
 func (service *RedisServices) AddPair(key string, value string, expiration time.Duration) error {
-	return service.rdb.Set(service.ctx, key, value, expiration).Err()
+	return service.rdb.WithTimeout(time.Second*3).Set(service.ctx, key, value, expiration).Err()
 }
 
 func (service *RedisServices) Remove(key string) error {
 	Log.WithField("module", "redis").Debug("Removing key from Redis")
-	return service.rdb.Del(service.ctx, key).Err()
+	return service.rdb.WithTimeout(time.Second*3).Del(service.ctx, key).Err()
 }
 
 func (service *RedisServices) Get(key string) (string, error) {
 	Log.WithField("module", "redis").Debug("Fetching value from Redis")
-	val := service.rdb.Get(service.ctx, key)
+	val := service.rdb.WithTimeout(time.Second*3).Get(service.ctx, key)
 	if val.Err() == redis.Nil {
 		return "", fmt.Errorf("Key not found")
 	}

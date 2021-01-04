@@ -40,7 +40,7 @@ func LoggerMiddleware() gin.HandlerFunc {
 				reqUri,
 			)
 		} else {
-			if latencyTime < time.Millisecond*250 {
+			if latencyTime < time.Millisecond*500 {
 				Log.WithFields(logrus.Fields{"module": "router"}).Warnf("| %d | %v | %s | %s | %s |",
 					statusCode,
 					latencyTime,

@@ -1,4 +1,4 @@
-package service
+package utils
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-//jwt service
+//jwt utils
 type JWTService interface {
 	GenerateToken(userID int32, deviceID string, lifetime time.Duration) (string, error)
 	ValidateToken(token string) (*jwt.Token, error)

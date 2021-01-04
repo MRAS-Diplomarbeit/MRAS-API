@@ -6,35 +6,57 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/mras-diplomarbeit/mras-api/config"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
-	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type RedisService interface {
-	Initialize(conf map[string]interface{}) (*redisServices, error)
+	Initialize(conf map[string]interface{}) (*RedisServices, error)
 }
-type redisServices struct {
-	Ctx context.Context
-	Rdb *redis.Client
-}
-
-func RedisDBService() *redisServices {
-	return &redisServices{}
+type RedisServices struct {
+	ctx context.Context
+	rdb *redis.Client
 }
 
-func (service *redisServices) Initialize(conf map[string]interface{}) (*redisServices, error) {
-	service.Ctx = context.Background()
-	service.Rdb = redis.NewClient(&redis.Options{
+func RedisDBService() *RedisServices {
+	return &RedisServices{}
+}
+
+func (service *RedisServices) Initialize(conf map[string]interface{}) (*RedisServices, error) {
+	service.ctx = context.Background()
+	service.rdb = redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", config.Redis["host"], config.Redis["port"]),
 		Password: conf["password"].(string),
 		DB:       conf["db"].(int),
 	})
 
-	err := service.Rdb.Ping(service.Ctx).Err()
-
+	err := service.rdb.Ping(service.ctx).Err()
 	if err != nil {
 		return service, err
 	}
 
-	Log.WithFields(logrus.Fields{"module": "redis"}).Info("Redis connection established!")
+	Log.WithField("module", "redis").Info("Redis connection established!")
 	return service, nil
+}
+
+func (service *RedisServices) AddPair(key string, value string, expiration time.Duration) error {
+	return service.rdb.Set(service.ctx, key, value, expiration).Err()
+}
+
+func (service *RedisServices) Remove(key string) error {
+	Log.WithField("module", "redis").Debug("Removing key from Redis")
+	return service.rdb.Del(service.ctx, key).Err()
+}
+
+func (service *RedisServices) Get(key string) (string, error) {
+	Log.WithField("module", "redis").Debug("Fetching value from Redis")
+	val := service.rdb.Get(service.ctx, key)
+	if val.Err() == redis.Nil {
+		return "", fmt.Errorf("Key not found")
+	}
+	return val.Val(), nil
+}
+
+func (service *RedisServices) Close() {
+	Log.WithField("module", "redis").Debug("Closing Redis connection")
+	service.rdb.Close()
 }

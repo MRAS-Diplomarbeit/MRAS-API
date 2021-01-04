@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
-	"github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -11,11 +10,11 @@ import (
 
 //jwt service
 type JWTService interface {
-	GenerateToken(userID string, deviceID string) (string, error)
+	GenerateToken(userID int32, deviceID string, lifetime time.Duration) (string, error)
 	ValidateToken(token string) (*jwt.Token, error)
 }
 type AuthCustomClaims struct {
-	UserID   string `json:"userid"`
+	UserID   int32  `json:"userid"`
 	DeviceID string `json:"deviceid"`
 	jwt.StandardClaims
 }
@@ -32,12 +31,12 @@ func JWTAuthService(secret string) JWTService {
 	}
 }
 
-func (service *jwtServices) GenerateToken(userID string, deviceID string) (string, error) {
+func (service *jwtServices) GenerateToken(userID int32, deviceID string, lifetime time.Duration) (string, error) {
 	claims := &AuthCustomClaims{
 		userID,
 		deviceID,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+			ExpiresAt: time.Now().Add(lifetime).Unix(),
 			Issuer:    service.issure,
 			IssuedAt:  time.Now().Unix(),
 		},
@@ -47,21 +46,27 @@ func (service *jwtServices) GenerateToken(userID string, deviceID string) (strin
 	//encoded string
 	t, err := token.SignedString([]byte(service.secretKey))
 	if err != nil {
-		Log.WithFields(logrus.Fields{"module": "jwt"}).Error("Error Generating JWT Token ", err)
+
+		Log.WithField("module", "jwt").Error("Error Generating JWT Token ", err)
+
 		return "", err
 	}
 	return t, nil
 }
 
 func (service *jwtServices) ValidateToken(encodedToken string) (*jwt.Token, error) {
-	Log.Debug("Validating JWT")
+
+	Log.WithField("module", "jwt").Debug("Validating JWT")
+
 	return jwt.Parse(encodedToken, func(token *jwt.Token) (interface{}, error) {
 		if _, isvalid := token.Method.(*jwt.SigningMethodHMAC); !isvalid {
-			err := fmt.Errorf("Invalid token", token.Header["alg"])
-			Log.WithFields(logrus.Fields{"module": "jwt"}).Error(err)
+			err := fmt.Errorf("invalid token %s", token.Header["alg"])
+			Log.WithField("module", "jwt").Error(err)
 			return nil, err
 		}
-		Log.WithFields(logrus.Fields{"module": "jwt"}).Debug("Successfully Validated JWT")
+
+		Log.WithField("module", "jwt").Debug("Successfully Validated JWT")
+
 		return []byte(service.secretKey), nil
 	})
 }

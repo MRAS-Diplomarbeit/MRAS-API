@@ -9,27 +9,22 @@ import (
 	"github.com/mras-diplomarbeit/mras-api/handler"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
 	"github.com/mras-diplomarbeit/mras-api/middleware"
-	"github.com/sirupsen/logrus"
 )
-
-func init() {
-
-}
 
 func main() {
 
-	router := gin.New()
-
 	_, err := mysql.GormService().Connect(config.MySQL).InitializeModel()
 	if err != nil {
-		Log.WithFields(logrus.Fields{"module": "gorm"}).Panic(err)
+		Log.WithField("module", "gorm").Panic(err)
 	}
 
-	redis, err := redis.RedisDBService().Initialize(config.Redis)
+	rdis, err := redis.RedisDBService().Initialize(config.Redis)
 	if err != nil {
-		Log.WithFields(logrus.Fields{"module": "redis"}).Panic(err)
+		Log.WithField("module", "redis").Panic(err)
 	}
-	defer redis.Rdb.Close()
+	rdis.Close()
+
+	router := gin.New()
 
 	router.Use(gin.Recovery())
 	router.Use(middleware.LoggerMiddleware())
@@ -42,8 +37,8 @@ func main() {
 		})
 	})
 
-	noAuthRouter.GET("/test", handler.TestHandler)
-	noAuthRouter.POST("/user/login", handler.LoginHandler)
+	noAuthRouter.POST("/user/login", handler.LoginUser)
+	noAuthRouter.POST("/user/register", handler.RegisterUser)
 
 	authRouter := router.Group("/api/v1")
 
@@ -61,8 +56,8 @@ func main() {
 	//noAuthRouter.Use(middleware.LoggerMiddleware)
 	//
 	//noAuthRouter.HandleFunc("/test", testhandler).Methods("GET")
-	//noAuthRouter.HandleFunc("/api/v1/login", handler.LoginHandler).Methods("POST")
-	//noAuthRouter.HandleFunc("/api/v1/register", handler.RegisterHandler).Methods("POST")
+	//noAuthRouter.HandleFunc("/api/v1/login", handler.LoginUser).Methods("POST")
+	//noAuthRouter.HandleFunc("/api/v1/register", handler.RegisterUser).Methods("POST")
 	//noAuthRouter.HandleFunc("/api/v1/refresh",handler.GenerateAccessToken).Methods("POST")
 	//noAuthRouter.HandleFunc("/api/v1/user/{username}/password/reset",handler.GenerateAccessToken).Methods("POST")
 	//noAuthRouter.HandleFunc("/api/v1/user/{username}/password/new",handler.GenerateAccessToken).Methods("POST")

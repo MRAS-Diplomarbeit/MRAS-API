@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -22,8 +23,8 @@ func LoggerMiddleware() gin.HandlerFunc {
 		clientIP := c.ClientIP()
 		//"| %3d | %13v | %15s | %s | %s |"
 
-		if statusCode == 200 {
-			Log.Infof("| %d | %v | %s | %s | %s |",
+		if latencyTime < time.Millisecond*250 && statusCode == 200 {
+			Log.WithFields(logrus.Fields{"module": "router"}).Infof("| %d | %v | %s | %s | %s |",
 				statusCode,
 				latencyTime,
 				clientIP,
@@ -31,7 +32,7 @@ func LoggerMiddleware() gin.HandlerFunc {
 				reqUri,
 			)
 		} else if statusCode >= 500 {
-			Log.Errorf("| %d | %v | %s | %s | %s |",
+			Log.WithFields(logrus.Fields{"module": "router"}).Errorf("| %d | %v | %s | %s | %s |",
 				statusCode,
 				latencyTime,
 				clientIP,
@@ -39,13 +40,24 @@ func LoggerMiddleware() gin.HandlerFunc {
 				reqUri,
 			)
 		} else {
-			Log.Warnf("| %d | %v | %s | %s | %s |",
-				statusCode,
-				latencyTime,
-				clientIP,
-				reqMethod,
-				reqUri,
-			)
+			if latencyTime < time.Millisecond*250 {
+				Log.WithFields(logrus.Fields{"module": "router"}).Warnf("| %d | %v | %s | %s | %s |",
+					statusCode,
+					latencyTime,
+					clientIP,
+					reqMethod,
+					reqUri,
+				)
+			} else {
+				Log.WithFields(logrus.Fields{"module": "router"}).Warnf("| %d | SLOW | %v | %s | %s | %s |",
+					statusCode,
+					latencyTime,
+					clientIP,
+					reqMethod,
+					reqUri,
+				)
+			}
+
 		}
 
 	}

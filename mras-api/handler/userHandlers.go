@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -145,7 +146,7 @@ func RegisterUser(c *gin.Context) {
 	var exists int64
 
 	//Check if Username already exists in Database
-	result := db.Con.Model(&user).Where("username = ?", user.Username).Count(&exists)
+	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
 		return
@@ -170,6 +171,7 @@ func RegisterUser(c *gin.Context) {
 	user.Password = request.Password
 	user.AvatarID = "default"
 	user.PermID = perms.ID
+	user.ResetCode = strings.ToLower(utils.GenerateCode())
 
 	Log.WithField("model", "handler").Debug(user)
 
@@ -216,7 +218,7 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, registerResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: user, ResetCode: utils.GenerateCode()})
+	c.JSON(200, registerResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: user, ResetCode: user.ResetCode})
 }
 
 //This function handles POST requests sent to the /api/v1/user/login endpoint
@@ -259,7 +261,7 @@ func LoginUser(c *gin.Context) {
 	user := mysql.User{}
 
 	//lookup user in users database
-	result := db.Con.Where("username = ? AND password = ?", request.Username, request.Password).First(&user)
+	result := db.Con.Where("upper(username) = upper(?) AND password = ?", request.Username, request.Password).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH003", Message: "User not found in Database (Wrong Username or Password)"})
@@ -305,15 +307,15 @@ func LoginUser(c *gin.Context) {
 }
 
 //This function handles GET requests sent to the /api/v1/user endpoint
-func GetAllUsers(c *gin.Context){
+func GetAllUsers(c *gin.Context) {
 
 	//Check if mysql database connection is already established and create one if not
 	if db == nil {
 		connectMySql()
 	}
 
-	type getAllUsersResponse struct{
-		Count int `json:"count"`
+	type getAllUsersResponse struct {
+		Count int          `json:"count"`
 		Users []mysql.User `json:"users"`
 	}
 
@@ -325,15 +327,142 @@ func GetAllUsers(c *gin.Context){
 		return
 	}
 
-	for _, user := range users{
+	for _, user := range users {
 		for _, group := range user.UserGroups {
 			user.UserGroupIDs = append(user.UserGroupIDs, group.ID)
 		}
 	}
 
-	c.JSON(http.StatusOK,getAllUsersResponse{Count: len(users),Users: users})
+	c.JSON(http.StatusOK, getAllUsersResponse{Count: len(users), Users: users})
 }
 
+//This function handles POST requests sent to the /api/v1/user/password/reset/:username endpoint
+func ResetUserPassword(c *gin.Context) {
+
+	//Check if mysql database connection is already established and create one if not
+	if db == nil {
+		connectMySql()
+	}
+
+	type resetUserPasswordRequest struct {
+		ResetCode string `json:"reset_code"`
+	}
+
+	//decode request body
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		if err != nil {
+			Log.WithField("module", "handler").WithError(err)
+			c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
+			return
+		}
+	}
+
+	var request resetUserPasswordRequest
+	json.Unmarshal(jsonData, &request)
+
+	var user mysql.User
+	user.Username = c.Param("username")
+	user.ResetCode = request.ResetCode
+
+	var exists int64
+
+	//Check if Username exists in Database
+	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+	if result.Error != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		return
+	}
+
+	if exists == 0 {
+		c.AbortWithStatusJSON(http.StatusNotFound, config.Error{Code: "AUTH006", Message: "User not found"})
+		return
+	}
+
+	//Check Database if ResetCode is correct
+	result = db.Con.Where("upper(username) = upper(?) and reset_code = ?", user.Username, user.ResetCode).First(&user)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH007", Message: "Wrong Reset Code"})
+			return
+		} else {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			return
+		}
+	}
+
+	//Reset Password in Database
+	user.Password = "RESET"
+	result = db.Con.Save(&user)
+	if result.Error != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ004", Message: "Error Reseting User Password"})
+		return
+	}
+}
+
+//This function handles POST requests sent to the /api/v1/user/password/new/:username endpoint
+func NewUserPassword(c *gin.Context) {
+
+	//Check if mysql database connection is already established and create one if not
+	if db == nil {
+		connectMySql()
+	}
+
+	type newUserPasswordRequest struct {
+		Password string `json:"password"`
+	}
+
+	//decode request body
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		if err != nil {
+			Log.WithField("module", "handler").WithError(err)
+			c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
+			return
+		}
+	}
+
+	var request newUserPasswordRequest
+	json.Unmarshal(jsonData, &request)
+
+	var user mysql.User
+	user.Username = c.Param("username")
+
+	var exists int64
+
+	//Check if Username exists in Database
+	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+	if result.Error != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		return
+	}
+
+	if exists == 0 {
+		c.AbortWithStatusJSON(http.StatusNotFound, config.Error{Code: "AUTH006", Message: "User not found"})
+		return
+	}
+
+	//check if Password is reset
+	result = db.Con.Where("upper(username) = upper(?) and password = ?", user.Username, "RESET").First(&user)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH008", Message: "Password not Reset"})
+			return
+		} else {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			return
+		}
+	}
+
+	//Save new Password to Database
+	user.Password = request.Password
+	result = db.Con.Save(&user)
+	if result.Error != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ005", Message: "Error Saving new Password"})
+		return
+	}
+
+}
 
 //Connect to redis database
 func connectRedis() {

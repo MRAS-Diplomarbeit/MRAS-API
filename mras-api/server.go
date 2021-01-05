@@ -34,12 +34,13 @@ func main() {
 	noAuthRouter.POST("/user/login", handler.LoginUser)
 	noAuthRouter.POST("/user/register", handler.RegisterUser)
 	noAuthRouter.POST("/user/refresh", handler.GenerateAccessToken)
+	noAuthRouter.POST("/user/password/reset/:username", handler.ResetUserPassword)
+	noAuthRouter.POST("/user/password/new/:username", handler.NewUserPassword)
 
 	authRouter := router.Group("/api/v1")
 	authRouter.Use(middleware.AuthMiddleware())
 
-	authRouter.GET("/user",handler.GetAllUsers)
-
+	authRouter.GET("/user", handler.GetAllUsers)
 
 	authRouter.POST("/authtest", func(c *gin.Context) {
 		c.JSON(200, gin.H{

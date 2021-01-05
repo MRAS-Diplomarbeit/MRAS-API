@@ -48,7 +48,6 @@ func (service *jwtServices) GenerateToken(userID int32, deviceID string, lifetim
 	if err != nil {
 
 		Log.WithField("module", "jwt").Error("Error Generating JWT Token ", err)
-
 		return "", err
 	}
 	return t, nil
@@ -57,14 +56,12 @@ func (service *jwtServices) GenerateToken(userID int32, deviceID string, lifetim
 func (service *jwtServices) ValidateToken(encodedToken string) (*jwt.Token, error) {
 
 	Log.WithField("module", "jwt").Debug("Validating JWT")
-
 	return jwt.Parse(encodedToken, func(token *jwt.Token) (interface{}, error) {
 		if _, isvalid := token.Method.(*jwt.SigningMethodHMAC); !isvalid {
 			err := fmt.Errorf("invalid token %s", token.Header["alg"])
 			Log.WithField("module", "jwt").Error(err)
 			return nil, err
 		}
-
 		Log.WithField("module", "jwt").Debug("Successfully Validated JWT")
 
 		return []byte(service.secretKey), nil

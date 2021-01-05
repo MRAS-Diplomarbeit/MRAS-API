@@ -20,6 +20,7 @@ import (
 var rdis *redis.RedisServices
 var db *mysql.SqlServices
 
+//This function handles POST requests sent to the /api/v1/user/refresh endpoint
 func GenerateAccessToken(c *gin.Context) {
 
 	//Check if redis database connection is already established and create one if not
@@ -57,7 +58,7 @@ func GenerateAccessToken(c *gin.Context) {
 	user.RefreshToken = request.RefreshToken
 
 	token, _ := utils.JWTAuthService(config.JWTAccessSecret).ValidateToken(user.RefreshToken)
-	if !token.Valid {
+	if token == nil || !token.Valid {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH005", Message: "Invalid RefreshToken"})
 		return
 	}
@@ -302,6 +303,37 @@ func LoginUser(c *gin.Context) {
 
 	c.JSON(200, loginResponse{accessToken, refreshToken})
 }
+
+//This function handles GET requests sent to the /api/v1/user endpoint
+func GetAllUsers(c *gin.Context){
+
+	//Check if mysql database connection is already established and create one if not
+	if db == nil {
+		connectMySql()
+	}
+
+	type getAllUsersResponse struct{
+		Count int `json:"count"`
+		Users []mysql.User `json:"users"`
+	}
+
+	var users []mysql.User
+
+	result := db.Con.Find(&users)
+	if result.Error != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		return
+	}
+
+	for _, user := range users{
+		for _, group := range user.UserGroups {
+			user.UserGroupIDs = append(user.UserGroupIDs, group.ID)
+		}
+	}
+
+	c.JSON(http.StatusOK,getAllUsersResponse{Count: len(users),Users: users})
+}
+
 
 //Connect to redis database
 func connectRedis() {

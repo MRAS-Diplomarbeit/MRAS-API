@@ -36,8 +36,10 @@ func main() {
 	noAuthRouter.POST("/user/refresh", handler.GenerateAccessToken)
 
 	authRouter := router.Group("/api/v1")
-
 	authRouter.Use(middleware.AuthMiddleware())
+
+	authRouter.GET("/user",handler.GetAllUsers)
+
 
 	authRouter.POST("/authtest", func(c *gin.Context) {
 		c.JSON(200, gin.H{

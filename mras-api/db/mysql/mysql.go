@@ -6,7 +6,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"io/ioutil"
 )
 
 type SQLService interface {
@@ -31,15 +30,11 @@ func (service *SqlServices) InitializeModel() (*SqlServices, error) {
 
 	service.Con.AutoMigrate(&User{}, &Permissions{}, &UserGroup{}, &Speaker{}, &SpeakerGroup{}, &Room{})
 
-	procedure, err := ioutil.ReadFile("procedure.sql")
-	if err != nil {
-		return service, err
-	} else {
-		service.Con.Exec("drop procedure if exists checkifalive")
-		service.Con.Exec("drop event if exists alivecheck")
-		service.Con.Exec(string(procedure))
-		service.Con.Exec("create event alivecheck on schedule every 30 SECOND on completion preserve  enable  do CALL checkifalive();")
-	}
+	service.Con.Exec("drop procedure if exists checkifalive")
+	service.Con.Exec("drop event if exists alivecheck")
+	service.Con.Exec(procedure)
+	service.Con.Exec("create event alivecheck on schedule every 30 SECOND on completion preserve  enable  do CALL checkifalive();")
+
 	Log.WithFields(logrus.Fields{"module": "gorm"}).Info("Database successfully initialized!")
 	return service, nil
 }
@@ -61,3 +56,4 @@ func (service *SqlServices) Connect(conf map[string]interface{}) *SqlServices {
 	service.Con = db
 	return service
 }
+

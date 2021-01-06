@@ -8,10 +8,11 @@ require (
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/go-redis/redis/v8 v8.4.2
 	github.com/go-sql-driver/mysql v1.5.0
+	github.com/gofiber/fiber/v2 v2.3.2
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
+	github.com/labstack/echo/v4 v4.1.17 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/onrik/gorm-logrus v0.3.0
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/viper v1.7.1

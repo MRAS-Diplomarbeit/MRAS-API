@@ -23,7 +23,7 @@ func LoggerMiddleware() gin.HandlerFunc {
 		clientIP := c.ClientIP()
 		//"| %3d | %13v | %15s | %s | %s |"
 
-		if latencyTime < time.Millisecond*250 && statusCode == 200 {
+		if latencyTime < time.Millisecond*500 && statusCode == 200 {
 			Log.WithFields(logrus.Fields{"module": "router"}).Infof("| %d | %v | %s | %s | %s |",
 				statusCode,
 				latencyTime,

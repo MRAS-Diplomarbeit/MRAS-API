@@ -464,6 +464,26 @@ func NewUserPassword(c *gin.Context) {
 
 }
 
+func GetUser(c *gin.Context) {
+
+}
+
+func DeleteUser(c *gin.Context) {
+
+}
+
+func LogoutUser(c *gin.Context) {
+
+}
+
+func GetPermissions(c *gin.Context) {
+
+}
+
+func UpdatePermissions(c *gin.Context) {
+
+}
+
 //Connect to redis database
 func connectRedis() {
 	var err error

@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"time"
 )
 
 type SQLService interface {
@@ -23,6 +24,7 @@ func GormService() *SqlServices {
 
 func (service *SqlServices) InitializeModel() (*SqlServices, error) {
 	Log.WithFields(logrus.Fields{"module": "gorm"}).Debug("Initializing Database")
+	startTime := time.Now()
 
 	if service.Con == nil {
 		return service, fmt.Errorf("Connection not initialized")
@@ -35,7 +37,10 @@ func (service *SqlServices) InitializeModel() (*SqlServices, error) {
 	service.Con.Exec(procedure)
 	service.Con.Exec("create event alivecheck on schedule every 30 SECOND on completion preserve  enable  do CALL checkifalive();")
 
-	Log.WithFields(logrus.Fields{"module": "gorm"}).Info("Database successfully initialized!")
+	endTime := time.Now()
+	duration := endTime.Sub(startTime)
+
+	Log.WithFields(logrus.Fields{"module": "gorm"}).Infof("Database successfully initialized! [%s]", duration.String())
 	return service, nil
 }
 
@@ -56,4 +61,3 @@ func (service *SqlServices) Connect(conf map[string]interface{}) *SqlServices {
 	service.Con = db
 	return service
 }
-

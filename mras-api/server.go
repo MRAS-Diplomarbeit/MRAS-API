@@ -27,7 +27,7 @@ func main() {
 	router := gin.New()
 
 	router.Use(gin.Recovery())
-	router.Use(middleware.LoggerMiddleware())
+	router.Use(middleware.LoggerMiddleware("app"))
 
 	noAuthRouter := router.Group("/api/v1")
 
@@ -40,7 +40,7 @@ func main() {
 	authRouter := router.Group("/api/v1")
 	authRouter.Use(middleware.AuthMiddleware())
 
-	authRouter.POST("/user", handler.GetAllUsers)
+	authRouter.GET("/user", handler.GetAllUsers)
 	authRouter.GET("/user/:id", handler.GetUser)
 	authRouter.DELETE("/user/:id", handler.DeleteUser)
 	authRouter.GET("/user/:id/logout", handler.LogoutUser)
@@ -74,6 +74,11 @@ func main() {
 	authRouter.PATCH("/group/speaker/:id", handler.UpdateSpeakerGroup)
 	authRouter.DELETE("/group/speaker/:id", handler.DeleteSpeakerGroup)
 
-	router.Run(":" + fmt.Sprint(config.Port))
+	go router.Run(":" + fmt.Sprint(config.Port))
+
+	router2 := gin.New()
+	router2.Use(middleware.LoggerMiddleware("client"))
+	router2.GET("/user", handler.GetAllUsers)
+	router2.Run(":3011")
 
 }

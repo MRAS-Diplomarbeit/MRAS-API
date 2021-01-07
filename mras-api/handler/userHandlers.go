@@ -143,6 +143,7 @@ func RegisterUser(c *gin.Context) {
 
 	if request.Username == "" || request.Password == "" || request.DeviceID == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST002", Message: "Request Body missing fields"})
+		return
 	}
 
 	user := mysql.User{}
@@ -262,6 +263,7 @@ func LoginUser(c *gin.Context) {
 
 	if request.Username == "" || request.Password == "" || request.DeviceID == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST002", Message: "Request Body missing fields"})
+		return
 	}
 
 	user := mysql.User{}

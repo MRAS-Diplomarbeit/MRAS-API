@@ -141,6 +141,11 @@ func RegisterUser(c *gin.Context) {
 	var request registerRequest
 	json.Unmarshal(jsonData, &request)
 
+	if request.Username == "" || request.Password == "" || request.DeviceID == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST002", Message: "Request Body missing fields"})
+		return
+	}
+
 	user := mysql.User{}
 	user.Username = request.Username
 	var exists int64
@@ -248,15 +253,18 @@ func LoginUser(c *gin.Context) {
 	//decode request body
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		if err != nil {
-			Log.WithField("module", "handler").WithError(err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
-			return
-		}
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
+		return
 	}
 
 	var request loginRequest
 	json.Unmarshal(jsonData, &request)
+
+	if request.Username == "" || request.Password == "" || request.DeviceID == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST002", Message: "Request Body missing fields"})
+		return
+	}
 
 	user := mysql.User{}
 

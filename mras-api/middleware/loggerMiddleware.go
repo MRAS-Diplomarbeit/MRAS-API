@@ -24,7 +24,7 @@ func LoggerMiddleware(router string) gin.HandlerFunc {
 		//"| %3d | %13v | %15s | %s | %s |"
 
 		if latencyTime < time.Millisecond*500 && statusCode == 200 {
-			Log.WithFields(logrus.Fields{"module": "router", "router": router}).Infof("| %d | %v | %s | %s | %s |",
+			Log.WithFields(logrus.Fields{"module": "router", "api": router}).Infof("| %d | %v | %s | %s | %s |",
 				statusCode,
 				latencyTime,
 				clientIP,
@@ -32,7 +32,7 @@ func LoggerMiddleware(router string) gin.HandlerFunc {
 				reqUri,
 			)
 		} else if statusCode >= 500 {
-			Log.WithFields(logrus.Fields{"module": "router", "router": router}).Errorf("| %d | %v | %s | %s | %s |",
+			Log.WithFields(logrus.Fields{"module": "router", "api": router}).Errorf("| %d | %v | %s | %s | %s |",
 				statusCode,
 				latencyTime,
 				clientIP,
@@ -41,7 +41,7 @@ func LoggerMiddleware(router string) gin.HandlerFunc {
 			)
 		} else {
 			if latencyTime < time.Millisecond*500 {
-				Log.WithFields(logrus.Fields{"module": "router", "router": router}).Warnf("| %d | %v | %s | %s | %s |",
+				Log.WithFields(logrus.Fields{"module": "router", "api": router}).Warnf("| %d | %v | %s | %s | %s |",
 					statusCode,
 					latencyTime,
 					clientIP,
@@ -49,7 +49,7 @@ func LoggerMiddleware(router string) gin.HandlerFunc {
 					reqUri,
 				)
 			} else {
-				Log.WithFields(logrus.Fields{"module": "router", "router": router}).Warnf("| %d | SLOW | %v | %s | %s | %s |",
+				Log.WithFields(logrus.Fields{"module": "router", "api": router}).Warnf("| %d | %v | %s | %s | %s |",
 					statusCode,
 					latencyTime,
 					clientIP,

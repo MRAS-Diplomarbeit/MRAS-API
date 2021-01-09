@@ -6,26 +6,30 @@ import (
 )
 
 type Permissions struct {
-	ID           int32           `gorm:"primaryKey;autoIncrement:true;unique"`
-	Admin        bool            `gorm:"default:false;not null"`
-	CanEdit      bool            `gorm:"default:false;not null"`
-	Speaker      []*Speaker      `gorm:"many2many:perm_speakers"`
-	SpeakerGroup []*SpeakerGroup `gorm:"many2many:perm_speakergroups"`
-	Room         []*Room         `gorm:"many2many:perm_rooms"`
+	ID              int32           `gorm:"primaryKey;autoIncrement:true;unique" json:"-"`
+	Admin           bool            `gorm:"default:false;not null" json:"admin"`
+	CanEdit         bool            `gorm:"default:false;not null" json:"canedit"`
+	Speakers        []*Speaker      `gorm:"many2many:perm_speakers" json:"-"`
+	SpeakerIDs      []int32         `gorm:"-" json:"speaker_ids"`
+	SpeakerGroups   []*SpeakerGroup `gorm:"many2many:perm_speakergroups" json:"-"`
+	SpeakerGroupIDs []int32         `gorm:"-" json:"speakergroup_ids"`
+	Rooms           []*Room         `gorm:"many2many:perm_rooms" json:"-"`
+	RoomIDs         []int32         `gorm:"-" json:"room_ids"`
 }
 
 type User struct {
-	ID           int32        `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
-	Username     string       `gorm:"size:15;unique" json:"username"`
-	Password     string       `gorm:"size:64" json:"-"`
-	CreatedAt    time.Time    `json:"-"`
-	AvatarID     string       `gorm:"size:10;default:default" json:"avatar_id"`
-	PermID       int32        `json:"-"`
-	Permissions  Permissions  `gorm:"foreignKey:PermID" json:"-"`
-	RefreshToken string       `json:"-"`
-	ResetCode    string       `json:"-"`
-	UserGroups   []*UserGroup `gorm:"many2many:user_usergroups" json:"-"`
-	UserGroupIDs []int32      `gorm:"-" json:"usergroup_ids"`
+	ID            int32        `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
+	Username      string       `gorm:"size:15;unique" json:"username"`
+	Password      string       `gorm:"size:64" json:"-"`
+	CreatedAt     time.Time    `json:"-"`
+	AvatarID      string       `gorm:"size:10;default:default" json:"avatar_id"`
+	PermID        int32        `json:"-"`
+	Permissions   Permissions  `gorm:"foreignKey:PermID" json:"-"`
+	RefreshToken  string       `json:"-"`
+	ResetCode     string       `json:"-"`
+	UserGroups    []*UserGroup `gorm:"many2many:user_usergroups" json:"-"`
+	UserGroupIDs  []int32      `gorm:"-" json:"usergroup_ids"`
+	PasswordReset bool         `gorm:"default:false" json:"-"`
 }
 
 type UserGroup struct {

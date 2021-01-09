@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/mras-diplomarbeit/mras-api/config"
@@ -28,22 +29,30 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		tokenString := strings.Split(c.Request.Header["Authorization"][0], " ")[1]
-		Log.WithField("module","middleware").Debug("JWT Token: ",tokenString)
+		Log.WithField("module", "middleware").Debug("JWT Token: ", tokenString)
 
 		token, _ := utils.JWTAuthService(config.JWTAccessSecret).ValidateToken(tokenString)
-		Log.WithField("module","middleware").Debug(token)
+		Log.WithField("module", "middleware").Debug(token)
 		if token != nil && token.Valid {
 
-			_, err := rdis.Get(tokenString)
+			claims := token.Claims.(jwt.MapClaims)
+			userid := int32(claims["userid"].(float64))
+			deviceid := claims["deviceid"]
+
+			redistoken, err := rdis.Get(fmt.Sprint(userid))
 			if err != nil {
 				Log.WithFields(logrus.Fields{"module": "middleware"}).Warn("JWT not Found in Reids (Epxired)")
 				c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH002", Message: "JWT not found in Redis (Expired)"})
 				return
 			}
 
-			claims := token.Claims.(jwt.MapClaims)
-			c.Set("userid", int32(claims["userid"].(float64)))
-			c.Set("deviceid", claims["deviceid"])
+			if redistoken != tokenString {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH002", Message: "JWT not found in Redis (Expired)"})
+				return
+			}
+
+			c.Set("userid", userid)
+			c.Set("deviceid", deviceid)
 
 		} else {
 			Log.WithFields(logrus.Fields{"module": "middleware"}).Warn("Invalid JWT")

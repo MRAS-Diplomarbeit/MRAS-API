@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mras-diplomarbeit/mras-api/config"
 	"github.com/mras-diplomarbeit/mras-api/db/mysql"
-	"github.com/mras-diplomarbeit/mras-api/db/redis"
+	errs "github.com/mras-diplomarbeit/mras-api/error"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
 	"github.com/mras-diplomarbeit/mras-api/utils"
 	"gorm.io/gorm"
@@ -18,9 +18,6 @@ import (
 	"strings"
 	"time"
 )
-
-var rdis *redis.RedisServices
-var db *mysql.SqlServices
 
 //This function handles POST requests sent to the /api/v1/user/login endpoint
 func LoginUser(c *gin.Context) {
@@ -50,15 +47,21 @@ func LoginUser(c *gin.Context) {
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
 		Log.WithField("module", "handler").WithError(err)
-		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
 		return
 	}
 
 	var request loginRequest
-	json.Unmarshal(jsonData, &request)
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
 
 	if request.Username == "" || request.Password == "" || request.DeviceID == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST002", Message: "Request Body missing fields"})
+		Log.WithField("module", "handler").Error("Empty Fields in Request Body")
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST002)
 		return
 	}
 
@@ -68,10 +71,12 @@ func LoginUser(c *gin.Context) {
 	result := db.Con.Where("upper(username) = upper(?) AND password = ?", request.Username, request.Password).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH003", Message: "User not found in Database (Wrong Username or Password)"})
+			Log.WithField("module", "handler").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH003)
 			return
 		} else {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 	}
@@ -80,7 +85,7 @@ func LoginUser(c *gin.Context) {
 	accessToken, err := utils.JWTAuthService(config.JWTAccessSecret).GenerateToken(user.ID, request.DeviceID, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "jwt").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "AUTH002", Message: "Error Generating JWT Token " + fmt.Sprintf(err.Error())})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.AUTH002)
 		return
 	}
 
@@ -88,14 +93,15 @@ func LoginUser(c *gin.Context) {
 	err = rdis.AddPair(fmt.Sprint(user.ID), accessToken, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "redis").WithError(err).Error("Error adding AccessToken to Redis.")
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ003", Message: "Error Accessing Redis"})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ003)
 		return
 	}
 
 	//Generate JWT RefreshToken
 	refreshToken, err := utils.JWTAuthService(config.JWTRefreshSecret).GenerateToken(user.ID, request.DeviceID, time.Hour*4380)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "AUTH002", Message: "Error Generating JWT Token " + fmt.Sprintf(err.Error())})
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.AUTH002)
 		return
 	}
 
@@ -103,7 +109,8 @@ func LoginUser(c *gin.Context) {
 	user.RefreshToken = refreshToken
 	result = db.Con.Save(&user)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ002", Message: "Error Saving RefreshToken in Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ002)
 		return
 	}
 
@@ -130,8 +137,8 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	type registerResponse struct {
-		AccessToken  string     `json:"access_token""`
-		RefreshToken string     `json:"refresh_token""`
+		AccessToken  string     `json:"access_token"`
+		RefreshToken string     `json:"refresh_token"`
 		User         mysql.User `json:"user"`
 		ResetCode    string     `json:"reset_code"`
 	}
@@ -139,18 +146,22 @@ func RegisterUser(c *gin.Context) {
 	//decode request body
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		if err != nil {
-			Log.WithField("module", "handler").WithError(err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
-			return
-		}
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
 	}
 
 	var request registerRequest
-	json.Unmarshal(jsonData, &request)
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
 
 	if request.Username == "" || request.Password == "" || request.DeviceID == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST002", Message: "Request Body missing fields"})
+		Log.WithField("module", "handler").Error("Empty Fields in Request Body")
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST002)
 		return
 	}
 
@@ -161,13 +172,15 @@ func RegisterUser(c *gin.Context) {
 	//Check if Username already exists in Database
 	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "handler").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 	Log.WithField("module", "handler").Debug("Users found: ", exists)
 
 	if exists != 0 {
-		c.AbortWithStatusJSON(http.StatusForbidden, config.Error{Code: "AUTH004", Message: "User already exists"})
+		Log.WithField("module", "handler").Error("Username already exists in Database")
+		c.AbortWithStatusJSON(http.StatusForbidden, errs.AUTH004)
 		return
 	}
 
@@ -177,7 +190,8 @@ func RegisterUser(c *gin.Context) {
 	//Create permission entry for new user in permissions table
 	result = db.Con.Save(&perms)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
@@ -196,7 +210,8 @@ func RegisterUser(c *gin.Context) {
 	//Save new user to users database
 	result = db.Con.Save(&user)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
@@ -204,7 +219,7 @@ func RegisterUser(c *gin.Context) {
 	accessToken, err := utils.JWTAuthService(config.JWTAccessSecret).GenerateToken(user.ID, request.DeviceID, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "jwt").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "AUTH002", Message: "Error Generating JWT Token " + fmt.Sprintf(err.Error())})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.AUTH002)
 		return
 	}
 
@@ -219,7 +234,7 @@ func RegisterUser(c *gin.Context) {
 	refreshToken, err := utils.JWTAuthService(config.JWTAccessSecret).GenerateToken(user.ID, request.DeviceID, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "jwt").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "AUTH002", Message: "Error Generating JWT Token " + fmt.Sprintf(err.Error())})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.AUTH002)
 		return
 	}
 
@@ -228,7 +243,8 @@ func RegisterUser(c *gin.Context) {
 	//Save RefreshToken to Database
 	result = db.Con.Save(&user)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ002", Message: "Error Saving RefreshToken in Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ002)
 		return
 	}
 
@@ -259,22 +275,26 @@ func GenerateAccessToken(c *gin.Context) {
 	//decode request body
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		if err != nil {
-			Log.WithField("module", "handler").WithError(err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
-			return
-		}
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
 	}
 
 	var request refreshRequest
-	json.Unmarshal(jsonData, &request)
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
 
 	user := mysql.User{}
 	user.RefreshToken = request.RefreshToken
 
 	token, _ := utils.JWTAuthService(config.JWTAccessSecret).ValidateToken(user.RefreshToken)
 	if token == nil || !token.Valid {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH005", Message: "Invalid RefreshToken"})
+		Log.WithField("module", "handler").Error("Invalid JWT Token")
+		c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH005)
 		return
 	}
 	claims := token.Claims.(jwt.MapClaims)
@@ -283,15 +303,17 @@ func GenerateAccessToken(c *gin.Context) {
 
 	var exists int64
 
-	//Check if Username already exists in Database
+	//Check if Refresh Token is valid
 	result := db.Con.Model(&user).Where("id = ? and refresh_token = ?", user.ID, request.RefreshToken).Count(&exists)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	if exists == 0 {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH005", Message: "Invalid RefreshToken"})
+		Log.WithField("module", "handler").Error("Invalid RefreshToken")
+		c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH005)
 		return
 	}
 
@@ -301,7 +323,7 @@ func GenerateAccessToken(c *gin.Context) {
 	accessToken, err := utils.JWTAuthService(config.JWTAccessSecret).GenerateToken(user.ID, claims["deviceid"].(string), time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "jwt").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "AUTH002", Message: "Error Generating JWT Token " + fmt.Sprintf(err.Error())})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.AUTH002)
 		return
 	}
 
@@ -332,12 +354,17 @@ func ResetUserPassword(c *gin.Context) {
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
 		Log.WithField("module", "handler").WithError(err)
-		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
 		return
 	}
 
 	var request resetUserPasswordRequest
-	json.Unmarshal(jsonData, &request)
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
 
 	var user mysql.User
 	user.Username = c.Param("username")
@@ -348,12 +375,14 @@ func ResetUserPassword(c *gin.Context) {
 	//Check if Username exists in Database
 	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	if exists == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound, config.Error{Code: "AUTH006", Message: "User not found"})
+		Log.WithField("module", "handler").Error("Username not found in Database")
+		c.AbortWithStatusJSON(http.StatusNotFound, errs.AUTH006)
 		return
 	}
 
@@ -361,10 +390,12 @@ func ResetUserPassword(c *gin.Context) {
 	result = db.Con.Where("upper(username) = upper(?) and reset_code = ?", user.Username, user.ResetCode).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH007", Message: "Wrong Reset Code"})
+			Log.WithField("module", "handler").Error("ResetCode Username combination not found (incorrect)")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH007)
 			return
 		} else {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 	}
@@ -374,7 +405,8 @@ func ResetUserPassword(c *gin.Context) {
 	user.PasswordReset = true
 	result = db.Con.Save(&user)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ004", Message: "Error Reseting User Password"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ004)
 		return
 	}
 }
@@ -394,15 +426,18 @@ func NewUserPassword(c *gin.Context) {
 	//decode request body
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		if err != nil {
-			Log.WithField("module", "handler").WithError(err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "RQST001", Message: "Error decoding RequestBody" + fmt.Sprintf(err.Error())})
-			return
-		}
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
 	}
 
 	var request newUserPasswordRequest
-	json.Unmarshal(jsonData, &request)
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
 
 	var user mysql.User
 	user.Username = c.Param("username")
@@ -412,12 +447,14 @@ func NewUserPassword(c *gin.Context) {
 	//Check if Username exists in Database
 	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	if exists == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound, config.Error{Code: "AUTH006", Message: "User not found"})
+		Log.WithField("module", "sql").Error("Username not Found in Database")
+		c.AbortWithStatusJSON(http.StatusNotFound, errs.AUTH006)
 		return
 	}
 
@@ -425,10 +462,12 @@ func NewUserPassword(c *gin.Context) {
 	result = db.Con.Where("upper(username) = upper(?) and password = ? and password_reset = ?", user.Username, "RESET", true).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH008", Message: "Password not Reset"})
+			Log.WithField("module", "handler").Error("Username and ResetCode combination not found!")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH008)
 			return
 		} else {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 	}
@@ -438,7 +477,8 @@ func NewUserPassword(c *gin.Context) {
 	user.PasswordReset = false
 	result = db.Con.Save(&user)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ005", Message: "Error Saving new Password"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ005)
 		return
 	}
 
@@ -462,7 +502,8 @@ func GetAllUsers(c *gin.Context) {
 	//Get all Users from Database
 	result := db.Con.Find(&users)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
@@ -470,7 +511,8 @@ func GetAllUsers(c *gin.Context) {
 	for _, user := range users {
 		err := db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 
@@ -498,7 +540,8 @@ func GetUser(c *gin.Context) {
 	var user mysql.User
 	tmp, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "RQST001", Message: "Error decoding Request"})
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
 		return
 	}
 
@@ -508,17 +551,20 @@ func GetUser(c *gin.Context) {
 	result := db.Con.First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "DBSQ006", Message: "User ID not Found"})
+			Log.WithField("module", "handler").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.DBSQ006)
 			return
 		} else {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 	}
 
 	err = db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
@@ -541,7 +587,8 @@ func DeleteUser(c *gin.Context) {
 	//Convert ID Parameter into int32
 	tmp, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "RQST001", Message: "Error decoding Request"})
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
 		return
 	}
 	userid := int32(tmp)
@@ -552,12 +599,14 @@ func DeleteUser(c *gin.Context) {
 	var exists int64
 	result := db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	if exists == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound, config.Error{Code: "DBSQ006", Message: "User ID not Found"})
+		Log.WithField("module", "handler").Error("User not Found in Database")
+		c.AbortWithStatusJSON(http.StatusNotFound, errs.DBSQ006)
 		return
 	}
 
@@ -566,7 +615,8 @@ func DeleteUser(c *gin.Context) {
 
 		result := db.Con.Where("id = ?", reqUserId).First(&user)
 		if result.Error != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 
@@ -574,12 +624,14 @@ func DeleteUser(c *gin.Context) {
 
 		err = db.Con.Model(&user).Association("Permissions").Find(&user.Permissions)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 
 		if !user.Permissions.Admin {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH009", Message: "User not Authorized for this Action"})
+			Log.WithField("module", "handler").Error("User not Authorized for this Action")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH009)
 			return
 		}
 	}
@@ -587,10 +639,12 @@ func DeleteUser(c *gin.Context) {
 	result = db.Con.Delete(mysql.User{}, userid)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "DBSQ006", Message: "User ID not Found"})
+			Log.WithField("module", "handler").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusNotFound, errs.DBSQ006)
 			return
 		} else {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 	}
@@ -613,23 +667,26 @@ func LogoutUser(c *gin.Context) {
 	//Convert ID Parameter into int32
 	tmp, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "RQST001", Message: "Error decoding Request"})
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
 		return
 	}
 	userid := int32(tmp)
 
 	reqUserId, _ := c.Get("userid")
 
-	//Check if UserID
+	//Check if UserID exists
 	var exists int64
 	result := db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	if exists == 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, config.Error{Code: "DBSQ006", Message: "User ID not Found"})
+		Log.WithField("module", "handler").Error("User not found in Database")
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.DBSQ006)
 		return
 	}
 
@@ -638,7 +695,8 @@ func LogoutUser(c *gin.Context) {
 
 		result := db.Con.Where("id = ?", reqUserId).First(&user)
 		if result.Error != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 
@@ -646,25 +704,29 @@ func LogoutUser(c *gin.Context) {
 
 		err = db.Con.Model(&user).Association("Permissions").Find(&user.Permissions)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+			Log.WithField("module", "sql").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 
 		if !user.Permissions.Admin {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH009", Message: "User not Authorized for this Action"})
+			Log.WithField("module", "handler").Error("User not Authorized for this Action")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH009)
 			return
 		}
 	}
 
 	err = rdis.Remove(fmt.Sprint(userid))
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ003", Message: "Error Accessing Redis"})
+		Log.WithField("module", "redis").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ003)
 		return
 	}
 
 	result = db.Con.Model(&mysql.User{}).Where("id = ?", userid).Update("refresh_token", "")
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 }
@@ -684,7 +746,8 @@ func GetPermissions(c *gin.Context) {
 	//Convert ID Parameter into int32
 	tmp, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "RQST001", Message: "Error decoding Request"})
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
 		return
 	}
 	userid := int32(tmp)
@@ -693,12 +756,14 @@ func GetPermissions(c *gin.Context) {
 	var exists int64
 	result := db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	if exists == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound, config.Error{Code: "DBSQ006", Message: "User ID not Found"})
+		Log.WithField("module", "handler").Error("User not found in Database")
+		c.AbortWithStatusJSON(http.StatusNotFound, errs.DBSQ006)
 		return
 	}
 
@@ -706,25 +771,29 @@ func GetPermissions(c *gin.Context) {
 
 	err = db.Con.Model(mysql.User{}).Where("id = ?", userid).Association("Permissions").Find(&perm)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	err = db.Con.Model(&perm).Association("Speakers").Find(&perm.Speakers)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	err = db.Con.Model(&perm).Association("Rooms").Find(&perm.Rooms)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	err = db.Con.Model(&perm).Association("SpeakerGroups").Find(&perm.SpeakerGroups)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, config.Error{Code: "DBSQ001", Message: "Error Accessing Database"})
+		Log.WithField("module", "sql").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
@@ -784,19 +853,4 @@ func UpdatePermissions(c *gin.Context) {
 	//	return
 	//}
 
-}
-
-//Connect to redis database
-func connectRedis() {
-	var err error
-	rdis, err = redis.RedisDBService().Initialize(config.Redis)
-	if err != nil {
-		Log.WithField("module", "redis").WithError(err)
-	}
-
-}
-
-//create connections to mysql database
-func connectMySql() {
-	db = mysql.GormService().Connect(config.MySQL)
 }

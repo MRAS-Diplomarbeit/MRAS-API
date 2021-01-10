@@ -14,11 +14,6 @@ var (
 	LogLocation      string
 )
 
-type Error struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
 func init() {
 	v1, _ := readConfig(".env", map[string]interface{}{
 		"port":             3000,

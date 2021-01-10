@@ -13,6 +13,7 @@ require (
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/viper v1.7.1
+	github.com/stretchr/testify v1.6.1
 	github.com/tjarratt/babble v0.0.0-20191209142150-eecdf8c2339d
 	github.com/ugorji/go v1.2.2 // indirect
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect

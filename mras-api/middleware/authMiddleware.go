@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mras-diplomarbeit/mras-api/config"
 	"github.com/mras-diplomarbeit/mras-api/db/redis"
+	errs "github.com/mras-diplomarbeit/mras-api/error"
 	. "github.com/mras-diplomarbeit/mras-api/logger"
 	"github.com/mras-diplomarbeit/mras-api/utils"
 	"github.com/sirupsen/logrus"
@@ -25,7 +26,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if len(authHeader) == 0 {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH001", Message: "Missing or Invalid Authorization Header"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH001)
 			return
 		}
 		tokenString := strings.Split(c.Request.Header["Authorization"][0], " ")[1]
@@ -42,12 +43,12 @@ func AuthMiddleware() gin.HandlerFunc {
 			redistoken, err := rdis.Get(fmt.Sprint(userid))
 			if err != nil {
 				Log.WithFields(logrus.Fields{"module": "middleware"}).Warn("JWT not Found in Reids (Epxired)")
-				c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH002", Message: "JWT not found in Redis (Expired)"})
+				c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH002)
 				return
 			}
 
 			if redistoken != tokenString {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH002", Message: "JWT not found in Redis (Expired)"})
+				c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH002)
 				return
 			}
 
@@ -56,7 +57,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		} else {
 			Log.WithFields(logrus.Fields{"module": "middleware"}).Warn("Invalid JWT")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, config.Error{Code: "AUTH001", Message: "Missing or Invalid Authorization Header"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH001)
 			return
 		}
 		c.Next()

@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"github.com/mras-diplomarbeit/mras-api/config"
-	"github.com/mras-diplomarbeit/mras-api/db/mysql"
-	"github.com/mras-diplomarbeit/mras-api/db/redis"
-	. "github.com/mras-diplomarbeit/mras-api/logger"
+	"github.com/mras-diplomarbeit/mras-api/core/config"
+	"github.com/mras-diplomarbeit/mras-api/core/db/mysql"
+	"github.com/mras-diplomarbeit/mras-api/core/db/redis"
+	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 )
 
 var rdis *redis.RedisServices

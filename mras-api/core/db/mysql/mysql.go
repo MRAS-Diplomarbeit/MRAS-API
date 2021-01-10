@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"fmt"
-	. "github.com/mras-diplomarbeit/mras-api/logger"
+	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"

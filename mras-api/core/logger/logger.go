@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"github.com/mras-diplomarbeit/mras-api/config"
+	"github.com/mras-diplomarbeit/mras-api/core/config"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/writer"

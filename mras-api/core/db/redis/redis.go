@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/mras-diplomarbeit/mras-api/config"
-	. "github.com/mras-diplomarbeit/mras-api/logger"
+	"github.com/mras-diplomarbeit/mras-api/core/config"
+	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"time"
 )
 

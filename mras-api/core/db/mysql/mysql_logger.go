@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"time"
 
-	. "github.com/mras-diplomarbeit/mras-api/logger"
+	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"

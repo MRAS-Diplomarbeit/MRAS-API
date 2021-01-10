@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	. "github.com/mras-diplomarbeit/mras-api/logger"
+	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"github.com/sirupsen/logrus"
 	"time"
 )

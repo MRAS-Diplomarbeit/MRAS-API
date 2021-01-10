@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	. "github.com/mras-diplomarbeit/mras-api/logger"
+	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"

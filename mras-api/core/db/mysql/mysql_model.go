@@ -41,17 +41,17 @@ type UserGroup struct {
 }
 
 type Speaker struct {
-	ID           int32  `gorm:"primaryKey;autoIncrement:true;unique"`
-	Name         string `gorm:"size:100"`
-	Description  string
-	PosX         sql.NullFloat64
-	PosY         sql.NullFloat64
-	RoomID       int32
-	IPAddress    string
-	CreatedAt    time.Time
-	LastLifesign time.Time
-	Alive        bool            `gorm:"default:true;not null"`
-	SpeakerGroup []*SpeakerGroup `gorm:"many2many:speakergroup_speakers"`
+	ID           int32           `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
+	Name         string          `gorm:"size:100" json:"name"`
+	Description  string          `json:"description"`
+	PosX         sql.NullFloat64 `json:"position_x"`
+	PosY         sql.NullFloat64 `json:"position_y"`
+	RoomID       int32           `json:"room_id"`
+	IPAddress    string          `json:"-"`
+	CreatedAt    time.Time       `json:"-"`
+	LastLifesign time.Time       `json:"-"`
+	Alive        bool            `gorm:"default:true;not null" json:"-"`
+	SpeakerGroup []*SpeakerGroup `gorm:"many2many:speakergroup_speakers" json:"-"`
 }
 
 type SpeakerGroup struct {

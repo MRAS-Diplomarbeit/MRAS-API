@@ -44,14 +44,20 @@ type Speaker struct {
 	ID           int32           `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
 	Name         string          `gorm:"size:100" json:"name"`
 	Description  string          `json:"description"`
-	PosX         sql.NullFloat64 `json:"position_x"`
-	PosY         sql.NullFloat64 `json:"position_y"`
+	PosX         sql.NullFloat64 `json:"-"`
+	PosY         sql.NullFloat64 `json:"-"`
+	Position     Position        `gorm:"-" json:"position"`
 	RoomID       int32           `json:"room_id"`
 	IPAddress    string          `json:"-"`
 	CreatedAt    time.Time       `json:"-"`
 	LastLifesign time.Time       `json:"-"`
 	Alive        bool            `gorm:"default:true;not null" json:"-"`
 	SpeakerGroup []*SpeakerGroup `gorm:"many2many:speakergroup_speakers" json:"-"`
+}
+
+type Position struct {
+	X interface{} `json:"x"`
+	Y interface{} `json:"y"`
 }
 
 type SpeakerGroup struct {
@@ -69,4 +75,4 @@ type Room struct {
 	CreatedAt   time.Time
 }
 
-const procedure = "create definer = root@`%` procedure checkifalive() begin declare speaker_id int; declare diff int; declare finished integer default 0; declare curId cursor for SELECT id from speakers; declare continue handler for not found set finished = 1; open curId; updAlive: loop FETCH curId into speaker_id; select CURRENT_TIME - TIME_TO_SEC((SELECT last_lifesign from speakers)) into diff; insert into difference(test) value (diff); if diff >= 30 then update speakers set alive = false where id = speaker_id; else update speakers set alive = true where id = speaker_id; end if; if finished = 1 then LEAVE updAlive; end if; end loop updAlive; close curId; end;"
+const procedure = "create definer = root@`%` procedure checkifalive() begin declare speaker_id int; declare diff int; declare finished integer default 0; declare curId cursor for SELECT id from speakers; declare continue handler for not found set finished = 1; open curId; updAlive:loop FETCH curId into speaker_id; select TIMESTAMPDIFF(SECOND,(SELECT last_lifesign from speakers where id = speaker_id),CURRENT_TIMESTAMP) into diff; if diff >= 30 then update speakers set alive = 0 where id = speaker_id; else update speakers set alive = 1 where id = speaker_id; end if; if finished = 1 then LEAVE updAlive; end if; end loop updAlive; close curId; end;"

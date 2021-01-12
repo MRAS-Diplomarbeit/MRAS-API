@@ -33,11 +33,12 @@ type User struct {
 }
 
 type UserGroup struct {
-	ID          int32  `gorm:"primaryKey;autoIncrement:true;unique"`
-	Name        string `gorm:"size:100"`
-	PermID      int32
-	Permissions Permissions `gorm:"foreignKey:PermID"`
-	Users       []*User     `gorm:"many2many:user_usergroups"`
+	ID          int32       `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
+	Name        string      `gorm:"size:100" json:"name"`
+	PermID      int32       `json:"perm_id"`
+	Permissions Permissions `gorm:"foreignKey:PermID" json:"-"`
+	Users       []*User     `gorm:"many2many:user_usergroups" json:"-"`
+	UserIDs     []int32     `gorm:"-" json:"user_id"`
 }
 
 type Speaker struct {
@@ -61,15 +62,16 @@ type Position struct {
 }
 
 type SpeakerGroup struct {
-	ID      int32      `gorm:"primaryKey;autoIncrement:true;unique"`
-	Name    string     `gorm:"not null;size:100"`
-	Speaker []*Speaker `gorm:"many2many:speakergroup_speakers"`
+	ID         int32      `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
+	Name       string     `gorm:"not null;size:100" json:"name"`
+	Speaker    []*Speaker `gorm:"many2many:speakergroup_speakers" json:"-"`
+	SpeakerIds []int32    `gorm:"-" json:"speaker_ids"`
 }
 
 type Room struct {
-	ID          int32  `gorm:"primaryKey;autoIncrement:true;unique;not null"`
-	Name        string `gorm:"not null;size:100"`
-	Description string
+	ID          int32  `gorm:"primaryKey;autoIncrement:true;unique;not null" json:"id"`
+	Name        string `gorm:"not null;size:100" json:"name"`
+	Description string `json:"description"`
 	DimHeight   sql.NullFloat64
 	DimWidth    sql.NullFloat64
 	CreatedAt   time.Time

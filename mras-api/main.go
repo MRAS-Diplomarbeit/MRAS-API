@@ -31,7 +31,7 @@ func main() {
 
 	apiRouter := app_api.SetupApiRouter()
 	go func() {
-		err = apiRouter.Run(":" + fmt.Sprint(config.Port))
+		err = apiRouter.Run(":" + fmt.Sprint(config.AppPort))
 		if err != nil {
 			Log.WithField("module", "router").Error(err)
 		}
@@ -39,9 +39,8 @@ func main() {
 	}()
 
 	clientRouter := client_api.SetupClientRouter()
-
 	go func() {
-		err = clientRouter.Run(":3001")
+		err = clientRouter.Run(":"+fmt.Sprint(config.ClientPort))
 		if err != nil {
 			Log.WithField("module", "router").Error(err)
 		}

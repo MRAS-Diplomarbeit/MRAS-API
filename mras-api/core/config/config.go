@@ -7,11 +7,12 @@ import (
 var (
 	MySQL            map[string]interface{}
 	Redis            map[string]interface{}
-	Port             int
+	AppPort          int
 	JWTAccessSecret  string
 	JWTRefreshSecret string
 	Loglevel         string
 	LogLocation      string
+	ClientPort       int
 )
 
 func init() {
@@ -19,7 +20,7 @@ func init() {
 		"port":             3000,
 		"jwtAccessSecret":  "ABCDEF",
 		"jwtRefreshSecret": "ABCDEFG",
-		"logLocation":      "log.txt",
+		"logfile":      "log.txt",
 		"logLevel":         "info",
 		"mysql": map[string]interface{}{
 			"host":     "localhost",
@@ -35,13 +36,14 @@ func init() {
 		},
 	})
 
-	Port = v1.GetInt("server.port")
+	AppPort = v1.GetInt("server.app.port")
+	ClientPort = v1.GetInt("server.client.port")
 	MySQL = v1.GetStringMap("server.mysql")
 	Redis = v1.GetStringMap("server.redis")
 	JWTAccessSecret = v1.GetString("server.jwtAccessSecret")
 	JWTRefreshSecret = v1.GetString("server.jwtRefreshSecret")
 	Loglevel = v1.GetString("server.logLevel")
-	LogLocation = v1.GetString("server.logLocation")
+	LogLocation = v1.GetString("server.logfile")
 }
 
 func readConfig(filename string, defaults map[string]interface{}) (*viper.Viper, error) {

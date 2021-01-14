@@ -30,7 +30,11 @@ func (service *SqlServices) InitializeModel() (*SqlServices, error) {
 		return service, fmt.Errorf("Connection not initialized")
 	}
 
-	service.Con.AutoMigrate(&User{}, &Permissions{}, &UserGroup{}, &Speaker{}, &SpeakerGroup{}, &Room{})
+	err := service.Con.AutoMigrate(&User{}, &Permissions{}, &UserGroup{}, &Speaker{}, &SpeakerGroup{}, &Room{})
+	if err != nil {
+		Log.WithField("module", "gorm").WithError(err)
+		return nil, err
+	}
 
 	service.Con.Exec("drop procedure if exists checkifalive")
 	service.Con.Exec("drop event if exists alivecheck")

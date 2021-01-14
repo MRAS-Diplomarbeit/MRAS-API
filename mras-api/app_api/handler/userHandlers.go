@@ -39,8 +39,9 @@ func LoginUser(c *gin.Context) {
 	}
 
 	type loginResponse struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
+		AccessToken  string     `json:"access_token"`
+		RefreshToken string     `json:"refresh_token"`
+		User         mysql.User `json:"user"`
 	}
 
 	//decode request body
@@ -114,7 +115,7 @@ func LoginUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, loginResponse{accessToken, refreshToken})
+	c.JSON(200, loginResponse{accessToken, refreshToken, user})
 }
 
 //This function handles POST requests sent to the /api/v1/user/register endpoint

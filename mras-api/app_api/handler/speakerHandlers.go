@@ -1,11 +1,16 @@
 package handler
 
 import (
+	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/mras-diplomarbeit/mras-api/core/config"
 	"github.com/mras-diplomarbeit/mras-api/core/db/mysql"
 	errs "github.com/mras-diplomarbeit/mras-api/core/error"
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
+	"github.com/mras-diplomarbeit/mras-api/core/utils"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 func GetAllSpeakers(c *gin.Context) {
@@ -24,11 +29,11 @@ func GetAllSpeakers(c *gin.Context) {
 	userid, _ := c.Get("userid")
 
 	//Get all Speakers from Database
-	result := db.Con.Where("(speakers.id in (select speaker_id from perm_speakers where permissions_id =" +
-		" (select perm_id from users where users.id = ?)) or " +
-		"speakers.id in (select speaker_id from perm_speakers where permissions_id =" +
-		" (select perm_id from user_groups where user_groups.id in " +
-		"(select user_group_id from user_usergroups where user_id = ?)))) " +
+	result := db.Con.Where("(speakers.id in (select speaker_id from perm_speakers where permissions_id ="+
+		" (select perm_id from users where users.id = ?)) or "+
+		"speakers.id in (select speaker_id from perm_speakers where permissions_id ="+
+		" (select perm_id from user_groups where user_groups.id in "+
+		"(select user_group_id from user_usergroups where user_id = ?)))) "+
 		"and speakers.alive = true", userid, userid).Find(&speakers)
 
 	if result.Error != nil {
@@ -57,6 +62,87 @@ func GetSpeaker(c *gin.Context) {
 
 func EnablePlaybackSpeaker(c *gin.Context) {
 
+	type playbackClientReq struct {
+		Method      string   `json:"method"`
+		DisplayName string   `json:"displayname"`
+		DeviceIPs   []string `json:"device_ips"`
+	}
+
+	type playbackClientRes struct {
+		Code    string   `json:"code"`
+		Message string   `json:"message"`
+		DeadIps []string `json:"dead_ips"`
+	}
+
+	type playbackReq struct {
+		DisplayName string `json:"displayname"`
+		Method      string `json:"method"`
+	}
+
+	//tmp, err := strconv.Atoi(c.Param("id"))
+	//if err != nil {
+	//	Log.WithField("module", "handler").WithError(err)
+	//	c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
+	//	return
+	//}
+	//speakerid := int32(tmp)
+
+	//decode request body
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var request playbackReq
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var speaker mysql.Speaker
+	result := db.Con.Where("id = ?", c.Param("id")).First(&speaker)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	clientreq := playbackClientReq{Method: request.Method, DisplayName: request.DisplayName, DeviceIPs: nil}
+
+	res, err := utils.DispatchRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", clientreq)
+	if err != nil {
+		Log.WithField("module", "client").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE001)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == 200 {
+		return
+	}
+
+	var response playbackClientRes
+	err = json.NewDecoder(res.Body).Decode(&response)
+	if err != nil {
+
+	}
+
+	if res.StatusCode == 404 {
+		for _, ip := range response.DeadIps {
+			result = db.Con.Model(&mysql.Speaker{}).Where("ip_address = ?", ip).Update("alive", false)
+			if result.Error != nil {
+				Log.WithField("module", "sql").WithError(result.Error)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+				return
+			}
+		}
+	}
+	c.JSON(res.StatusCode, errs.Error{Code: response.Code, Message: response.Message})
+	return
 }
 
 func RemoveSpeaker(c *gin.Context) {

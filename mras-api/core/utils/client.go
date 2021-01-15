@@ -3,30 +3,20 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 )
 
-func DispatchRequest(url string,contentType string){
-	reqBody, err := json.Marshal(map[string]string{
-		"username": "Goher Go",
-		"email":    "go@gmail.com",
-	})
-
+func DispatchRequest(url string, contentType string, reqBody interface{}) (*http.Response, error) {
+	reqBodyJson, err := json.Marshal(reqBody)
 	if err != nil {
-		print(err)
+		return nil, err
 	}
 
 	resp, err := http.Post(url,
-		contentType, bytes.NewBuffer(reqBody))
+		contentType, bytes.NewBuffer(reqBodyJson))
 	if err != nil {
-		print(err)
+		return nil, err
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		print(err)
-	}
-	fmt.Println(string(body))
+
+	return resp, err
 }

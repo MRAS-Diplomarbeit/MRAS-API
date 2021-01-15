@@ -15,13 +15,24 @@ var (
 	ClientPort       int
 )
 
+var (
+	ClientBackendPort int
+	ClientBackendPath string
+)
+
 func init() {
 	v1, _ := readConfig(".env", map[string]interface{}{
 		"port":             3000,
 		"jwtAccessSecret":  "ABCDEF",
 		"jwtRefreshSecret": "ABCDEFG",
-		"logfile":      "log.txt",
+		"logfile":          "api.log",
 		"logLevel":         "info",
+		"app": map[string]interface{}{
+			"port": 3000,
+		},
+		"client": map[string]interface{}{
+			"port": 3001,
+		},
 		"mysql": map[string]interface{}{
 			"host":     "localhost",
 			"port":     3306,
@@ -44,6 +55,9 @@ func init() {
 	JWTRefreshSecret = v1.GetString("server.jwtRefreshSecret")
 	Loglevel = v1.GetString("server.logLevel")
 	LogLocation = v1.GetString("server.logfile")
+
+	ClientBackendPort = v1.GetInt("client.client-backend.port")
+	ClientBackendPath = v1.GetString("client.client-backend.path")
 }
 
 func readConfig(filename string, defaults map[string]interface{}) (*viper.Viper, error) {

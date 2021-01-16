@@ -23,5 +23,6 @@ var (
 	DBSQ006 = Error{Code: "DBSQ006", Message: "User ID not Found"}
 	RQST001 = Error{Code: "RQST001", Message: "Error decoding Request"}
 	RQST002 = Error{Code: "RQST002", Message: "Request Body missing fields"}
-	CLIE001 = Error{Code: "CLIE001", Message: "Error sending Request to client"}
+	CLIE001 = Error{Code: "CLIE001", Message: "Speaker/s not active"}
+	CLIE002 = Error{Code: "CLIE002", Message: "Error sending Request to client"}
 )

@@ -1,9 +1,18 @@
 package utils
 
-import "github.com/tjarratt/babble"
+import (
+	"github.com/tjarratt/babble"
+	"strings"
+)
 
 func GenerateCode() string {
 	babbler := babble.NewBabbler()
 	babbler.Count = 10
-	return babbler.Babble()
+
+	code := babbler.Babble()
+
+	var repl = strings.NewReplacer("'", "")
+	code = repl.Replace(code)
+
+	return code
 }

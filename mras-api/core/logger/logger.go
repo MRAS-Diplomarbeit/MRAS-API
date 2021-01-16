@@ -5,6 +5,7 @@ import (
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/writer"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"io/ioutil"
 	"os"
 )
@@ -13,7 +14,7 @@ var Log *logrus.Logger
 
 type Fields map[string]interface{}
 
-func init() {
+func InitLogger() {
 
 	Log = logrus.New()
 	Log.SetOutput(ioutil.Discard)
@@ -52,7 +53,12 @@ func init() {
 	})
 
 	Log.AddHook(lfshook.NewHook(
-		config.LogLocation,
+		&lumberjack.Logger{
+			Filename: config.LogLocation,
+			MaxSize:  50,   // megabytes
+			MaxAge:   28,   //days
+			Compress: true, // disabled by default
+		},
 		&logrus.JSONFormatter{
 			TimestampFormat: "2006-01-02 15:04:05",
 		},

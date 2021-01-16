@@ -20,12 +20,12 @@ var (
 	ClientBackendPath string
 )
 
-func init() {
-	v1, _ := readConfig(".env", map[string]interface{}{
+func LoadConfig(path string) {
+	v1, _ := readConfig(".env", path, map[string]interface{}{
 		"port":             3000,
 		"jwtAccessSecret":  "ABCDEF",
 		"jwtRefreshSecret": "ABCDEFG",
-		"logfile":          "api.log",
+		"logfile":          "log.txt",
 		"logLevel":         "info",
 		"app": map[string]interface{}{
 			"port": 3000,
@@ -60,13 +60,13 @@ func init() {
 	ClientBackendPath = v1.GetString("client.client-backend.path")
 }
 
-func readConfig(filename string, defaults map[string]interface{}) (*viper.Viper, error) {
+func readConfig(filename string, path string, defaults map[string]interface{}) (*viper.Viper, error) {
 	v := viper.New()
 	for key, value := range defaults {
 		v.SetDefault(key, value)
 	}
 	v.SetConfigName(filename)
-	v.AddConfigPath(".")
+	v.AddConfigPath(path)
 	v.AutomaticEnv()
 	err := v.ReadInConfig()
 	return v, err

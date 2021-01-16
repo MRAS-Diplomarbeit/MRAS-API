@@ -58,9 +58,19 @@ func UpdateSpeaker(c *gin.Context) {
 
 func GetSpeaker(c *gin.Context) {
 
+	//Check if mysql database connection is already established and create one if not
+	if db == nil {
+		connectMySql()
+	}
+
 }
 
 func EnablePlaybackSpeaker(c *gin.Context) {
+
+	//Check if mysql database connection is already established and create one if not
+	if db == nil {
+		connectMySql()
+	}
 
 	type playbackClientReq struct {
 		Method      string   `json:"method"`
@@ -69,7 +79,7 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 	}
 
 	type playbackClientRes struct {
-		Code    string   `json:"code"`
+		Code    int      `json:"code"`
 		Message string   `json:"message"`
 		DeadIps []string `json:"dead_ips"`
 	}
@@ -78,14 +88,6 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 		DisplayName string `json:"displayname"`
 		Method      string `json:"method"`
 	}
-
-	//tmp, err := strconv.Atoi(c.Param("id"))
-	//if err != nil {
-	//	Log.WithField("module", "handler").WithError(err)
-	//	c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
-	//	return
-	//}
-	//speakerid := int32(tmp)
 
 	//decode request body
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
@@ -111,12 +113,18 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 		return
 	}
 
-	clientreq := playbackClientReq{Method: request.Method, DisplayName: request.DisplayName, DeviceIPs: nil}
+	if !speaker.Alive {
+		Log.WithField("module", "handler").Warnf("Speaker ID:%d inavtive", speaker.ID)
+		c.AbortWithStatusJSON(http.StatusNotFound, errs.CLIE001)
+		return
+	}
+
+	clientreq := playbackClientReq{Method: request.Method, DisplayName: request.DisplayName, DeviceIPs: []string{}}
 
 	res, err := utils.DispatchRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", clientreq)
 	if err != nil {
 		Log.WithField("module", "client").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE001)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
 		return
 	}
 	defer res.Body.Close()
@@ -126,10 +134,8 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 	}
 
 	var response playbackClientRes
-	err = json.NewDecoder(res.Body).Decode(&response)
-	if err != nil {
-
-	}
+	json.NewDecoder(res.Body).Decode(&response)
+	Log.WithField("module", "handler").Debug(response)
 
 	if res.StatusCode == 404 {
 		for _, ip := range response.DeadIps {
@@ -141,8 +147,11 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 			}
 		}
 	}
-	c.JSON(res.StatusCode, errs.Error{Code: response.Code, Message: response.Message})
-	return
+	c.JSON(res.StatusCode, errs.Error{Code: strconv.Itoa(response.Code), Message: response.Message})
+}
+
+func StopPlaybackSpeaker(c *gin.Context) {
+
 }
 
 func RemoveSpeaker(c *gin.Context) {

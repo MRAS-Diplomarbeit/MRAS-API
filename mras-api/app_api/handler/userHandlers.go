@@ -82,6 +82,18 @@ func LoginUser(c *gin.Context) {
 		}
 	}
 
+	err = db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
+	if err != nil {
+		Log.WithField("module", "sql").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	//Add GroupIDs
+	for _, group := range user.UserGroups {
+		user.UserGroupIDs = append(user.UserGroupIDs, group.ID)
+	}
+
 	//Generate JWT AccessToken
 	accessToken, err := utils.JWTAuthService(config.JWTAccessSecret).GenerateToken(user.ID, request.DeviceID, time.Hour*24)
 	if err != nil {

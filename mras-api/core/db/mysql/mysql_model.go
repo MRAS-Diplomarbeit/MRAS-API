@@ -46,7 +46,7 @@ type Speaker struct {
 	Name         string          `gorm:"size:100" json:"name"`
 	Description  string          `json:"description"`
 	Position     Position        `gorm:"embedded" json:"position"`
-	RoomID       int32           `json:"room_id"`
+	RoomID       null.Int        `json:"room_id"`
 	IPAddress    string          `json:"-"`
 	CreatedAt    time.Time       `json:"-"`
 	LastLifesign time.Time       `json:"-"`

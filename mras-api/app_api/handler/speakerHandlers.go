@@ -42,14 +42,10 @@ func GetAllSpeakers(c *gin.Context) {
 		return
 	}
 
-	for _, speaker := range speakers {
-		if speaker.PosX.Valid && speaker.PosY.Valid {
-			speaker.Position.X = speaker.PosX.Float64
-			speaker.Position.Y = speaker.PosY.Float64
-		}
-	}
+	test, _ := json.Marshal(&resAllSpeakers{Count: len(speakers), Speakers: speakers})
+	Log.Debug(string(test))
+	c.Data(http.StatusOK, "application/json", test)
 
-	c.JSON(http.StatusOK, resAllSpeakers{Count: len(speakers), Speakers: speakers})
 }
 
 func UpdateSpeaker(c *gin.Context) {

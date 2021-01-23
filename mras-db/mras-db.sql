@@ -11,7 +11,7 @@ create table permissions
     id      INT NOT NULL UNIQUE AUTO_INCREMENT,
     admin   BOOL DEFAULT FALSE,
     canedit BOOL DEFAULT FALSE,
-    primary key (id)
+
 );
 
 create table user

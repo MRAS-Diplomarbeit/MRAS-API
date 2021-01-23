@@ -341,7 +341,7 @@ func GenerateAccessToken(c *gin.Context) {
 	}
 
 	//Add AccessToken to Redis
-	err = rdis.AddPair(accessToken, claims["deviceid"].(string), time.Hour*24)
+	err = rdis.AddPair(fmt.Sprint(user.ID), accessToken, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "redis").WithError(err).Error("Error adding AccessToken to Redis.")
 		err = nil

@@ -547,3 +547,5 @@ Temporary Items
 # End of https://www.toptal.com/developers/gitignore/api/go,jetbrains+all,java,c,reactnative,android,visualstudiocode,redis
 mras-api/server
 mras-api/log.txt
+mras-api/.env.yaml
+mras-api/main

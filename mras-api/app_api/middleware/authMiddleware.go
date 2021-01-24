@@ -30,10 +30,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		tokenString := strings.Split(c.Request.Header["Authorization"][0], " ")[1]
-		Log.WithField("module", "middleware").Debug("JWT Token: ", tokenString)
 
 		token, _ := utils.JWTAuthService(config.JWTAccessSecret).ValidateToken(tokenString)
-		Log.WithField("module", "middleware").Debug(token)
 		if token != nil && token.Valid {
 
 			claims := token.Claims.(jwt.MapClaims)

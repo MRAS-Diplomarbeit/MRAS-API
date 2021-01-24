@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"github.com/sirupsen/logrus"
+	"regexp"
 	"time"
 
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
@@ -46,6 +47,15 @@ func (l *logger) Trace(ctx context.Context, begin time.Time, fc func() (string, 
 	elapsed := time.Since(begin)
 	sql, _ := fc()
 	fields := logrus.Fields{"module": "gorm"}
+
+	//remove JWT-Tokens from Log
+	var re = regexp.MustCompile(`(='([A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=])+')`)
+	cleansql := re.ReplaceAllString(sql, `<TOKEN>`)
+
+	//remove reset-code from Log
+	re = regexp.MustCompile(`('(\w+(-|')){10})`)
+	cleansql = re.ReplaceAllString(cleansql, `<RESETCODE>`)
+
 	if l.SourceField != "" {
 		fields[l.SourceField] = utils.FileWithLineNum()
 	}
@@ -56,9 +66,9 @@ func (l *logger) Trace(ctx context.Context, begin time.Time, fc func() (string, 
 	}
 
 	if l.SlowThreshold != 0 && elapsed > l.SlowThreshold {
-		Log.WithContext(ctx).WithFields(fields).Warnf("%s [%s]", sql, elapsed)
+		Log.WithContext(ctx).WithFields(fields).Warnf("%s [%s]", cleansql, elapsed)
 		return
 	}
 
-	Log.WithContext(ctx).WithFields(fields).Debugf("%s [%s]", sql, elapsed)
+	Log.WithContext(ctx).WithFields(fields).Debugf("%s [%s]", cleansql, elapsed)
 }

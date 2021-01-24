@@ -42,13 +42,16 @@ func GetAllSpeakers(c *gin.Context) {
 		return
 	}
 
-	test, _ := json.Marshal(&resAllSpeakers{Count: len(speakers), Speakers: speakers})
-	Log.Debug(string(test))
-	c.Data(http.StatusOK, "application/json", test)
+	c.JSON(http.StatusOK, resAllSpeakers{Count: len(speakers), Speakers: speakers})
 
 }
 
 func UpdateSpeaker(c *gin.Context) {
+
+	//Check if mysql database connection is already established and create one if not
+	if db == nil {
+		connectMySql()
+	}
 
 }
 
@@ -59,6 +62,24 @@ func GetSpeaker(c *gin.Context) {
 		connectMySql()
 	}
 
+	var speaker mysql.Speaker
+
+	tmp, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
+		return
+	}
+	speaker.ID = int32(tmp)
+
+	result := db.Con.Find(&speaker)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	c.JSON(http.StatusOK, speaker)
 }
 
 func EnablePlaybackSpeaker(c *gin.Context) {

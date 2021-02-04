@@ -40,23 +40,13 @@ func LoggerMiddleware(router string) gin.HandlerFunc {
 				reqUri,
 			)
 		} else {
-			if latencyTime < time.Millisecond*500 {
-				Log.WithFields(logrus.Fields{"module": "router", "api": router}).Warnf("| %d | %v | %s | %s | %s |",
-					statusCode,
-					latencyTime,
-					clientIP,
-					reqMethod,
-					reqUri,
-				)
-			} else {
-				Log.WithFields(logrus.Fields{"module": "router", "api": router}).Warnf("| %d | %v | %s | %s | %s |",
-					statusCode,
-					latencyTime,
-					clientIP,
-					reqMethod,
-					reqUri,
-				)
-			}
+			Log.WithFields(logrus.Fields{"module": "router", "api": router}).Warnf("| %d | %v | %s | %s | %s |",
+				statusCode,
+				latencyTime,
+				clientIP,
+				reqMethod,
+				reqUri,
+			)
 
 		}
 

@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"net/http"
+	"strings"
 )
 
-func DispatchRequest(url string, contentType string, reqBody interface{}) (*http.Response, error) {
+func DispatchRequest(url string, contentType string, method string, reqBody interface{}) (*http.Response, error) {
 	Log.WithField("module", "requestDispatch").Debug("sending Request: " + url)
 	Log.WithField("module", "requestDispatch").Debug(reqBody)
 
@@ -18,9 +19,18 @@ func DispatchRequest(url string, contentType string, reqBody interface{}) (*http
 
 	Log.WithField("module", "requestDispatch").Debug(string(reqBodyJson))
 
-	resp, err := http.Post(url, contentType, bytes.NewBuffer(reqBodyJson))
-	if err != nil {
-		return nil, err
+	var resp *http.Response
+
+	if strings.ToUpper(method) == "POST" {
+		resp, err = http.Post(url, contentType, bytes.NewBuffer(reqBodyJson))
+		if err != nil {
+			return nil, err
+		}
+	} else if strings.ToUpper(method) == "DELETE" {
+		resp, err = http.Post(url, contentType, bytes.NewBuffer(reqBodyJson))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	Log.WithField("module", "requestDispatch").Debug(resp)

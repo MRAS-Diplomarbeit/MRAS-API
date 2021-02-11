@@ -138,7 +138,7 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 
 	clientreq := playbackClientReq{Method: request.Method, DisplayName: request.DisplayName, DeviceIPs: []string{}}
 
-	res, err := utils.DispatchRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", clientreq)
+	res, err := utils.DispatchRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "POST", clientreq)
 	if err != nil {
 		Log.WithField("module", "client").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
@@ -147,7 +147,32 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 	defer res.Body.Close()
 
 	if res.StatusCode == 200 {
-		return
+
+		var session mysql.Sessions
+
+		session.Speaker = speaker
+		session.DisplayName = request.DisplayName
+		session.Method = request.Method
+
+		result = db.Con.Save(&session)
+		if result.Error != nil {
+
+			type stopPlayback struct {
+				IPs []string `json:"ips"`
+			}
+
+			res, err := utils.DispatchRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "DELETE", stopPlayback{})
+			if err != nil {
+				Log.WithField("module", "client").WithError(err)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
+				return
+			}
+
+			res.Body.Close()
+		} else {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, errs.CLIE003)
 	}
 
 	var response playbackClientRes
@@ -168,6 +193,70 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 }
 
 func StopPlaybackSpeaker(c *gin.Context) {
+
+	//Check if mysql database connection is already established and create one if not
+	if db == nil {
+		connectMySql()
+	}
+
+	type stopPlaybackReq struct {
+		IPs []string `json:"ips"`
+	}
+
+	tmp, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
+		return
+	}
+
+	speakerid := int32(tmp)
+
+	var session mysql.Sessions
+
+	result := db.Con.Model(&session).Where("speaker_id = ? or id = (select sessions_id from session_speakers where session_speakers.speaker_id = ?)", speakerid, speakerid).Find(&session)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	err = db.Con.Model(&mysql.Speaker{}).Association("Speakers").Find(&session.Speaker)
+	if err != nil {
+		Log.WithField("module", "sql").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	err = db.Con.Model(&mysql.Speaker{}).Association("Speakers").Find(&session.Speakers)
+	if err != nil {
+		Log.WithField("module", "sql").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	for _, speaker := range session.Speakers {
+		session.SpeakerIPs = append(session.SpeakerIPs, speaker.IPAddress)
+	}
+
+	stopPlaybackReqBody := stopPlaybackReq{session.SpeakerIPs}
+
+	res, err := utils.DispatchRequest("http://"+session.Speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "DELETE", stopPlaybackReqBody)
+	if err != nil {
+		Log.WithField("module", "client").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == 200 {
+		result = db.Con.Delete(&session)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+	}
 
 }
 

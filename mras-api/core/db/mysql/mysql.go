@@ -30,7 +30,7 @@ func (service *SqlServices) InitializeModel() (*SqlServices, error) {
 		return service, fmt.Errorf("Connection not initialized")
 	}
 
-	err := service.Con.AutoMigrate(&User{}, &Permissions{}, &UserGroup{}, &Speaker{}, &SpeakerGroup{}, &Room{})
+	err := service.Con.AutoMigrate(&User{}, &Permissions{}, &UserGroup{}, &Speaker{}, &SpeakerGroup{}, &Room{}, &Sessions{})
 	if err != nil {
 		Log.WithField("module", "gorm").WithError(err)
 		return nil, err

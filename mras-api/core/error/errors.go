@@ -25,4 +25,5 @@ var (
 	RQST002 = Error{Code: "RQST002", Message: "Request Body missing fields"}
 	CLIE001 = Error{Code: "CLIE001", Message: "Speaker/s not active"}
 	CLIE002 = Error{Code: "CLIE002", Message: "Error sending Request to client"}
+	CLIE003 = Error{Code: "CLIE003", Message: "Error creating Session. Aborting playback!"}
 )

@@ -8,6 +8,8 @@ import (
 	errs "github.com/mras-diplomarbeit/mras-api/core/error"
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"github.com/mras-diplomarbeit/mras-api/core/utils"
+	"gopkg.in/guregu/null.v4"
+	"gorm.io/gorm"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -53,6 +55,75 @@ func UpdateSpeaker(c *gin.Context) {
 		connectMySql()
 	}
 
+	type updateSpeaker struct {
+		ID          null.Int       `json:"id"`
+		Name        null.String    `json:"name"`
+		Description null.String    `json:"description"`
+		Position    mysql.Position `json:"position"`
+		RoomID      null.Int       `json:"room_id"`
+	}
+
+	//decode request body
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var updtSpeaker updateSpeaker
+	err = json.Unmarshal(jsonData, &updtSpeaker)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	if !updtSpeaker.ID.Valid {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST002)
+		return
+	}
+
+	var ogSpeaker mysql.Speaker
+	ogSpeaker.ID = int32(updtSpeaker.ID.Int64)
+
+	result := db.Con.Find(&ogSpeaker)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ008)
+			return
+		}
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	if updtSpeaker.Name.Valid {
+		ogSpeaker.Name = updtSpeaker.Name.String
+	}
+	if updtSpeaker.Description.Valid {
+		ogSpeaker.Description = updtSpeaker.Description.String
+	}
+	if updtSpeaker.Position.PosY.Valid {
+		ogSpeaker.Position.PosY = updtSpeaker.Position.PosY
+	}
+	if updtSpeaker.Position.PosX.Valid {
+		ogSpeaker.Position.PosX = updtSpeaker.Position.PosX
+	}
+	if updtSpeaker.RoomID.Valid {
+		ogSpeaker.RoomID = updtSpeaker.RoomID
+	}
+
+	result = db.Con.Save(&ogSpeaker)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ007)
+		return
+	}
+
+	c.JSON(http.StatusOK, ogSpeaker)
 }
 
 func GetSpeaker(c *gin.Context) {
@@ -131,7 +202,7 @@ func EnablePlaybackSpeaker(c *gin.Context) {
 	}
 
 	if !speaker.Alive {
-		Log.WithField("module", "handler").Warnf("Speaker ID:%d inavtive", speaker.ID)
+		Log.WithField("module", "handler").Warnf("Speaker ID:%d inactive", speaker.ID)
 		c.AbortWithStatusJSON(http.StatusNotFound, errs.CLIE001)
 		return
 	}
@@ -262,4 +333,32 @@ func StopPlaybackSpeaker(c *gin.Context) {
 
 func RemoveSpeaker(c *gin.Context) {
 
+	//Check if mysql database connection is already established and create one if not
+	if db == nil {
+		connectMySql()
+	}
+
+	var speaker mysql.Speaker
+
+	tmp, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
+		return
+	}
+	speaker.ID = int32(tmp)
+
+	//err = db.Con.Model(&mysql.Permissions{}).Association("Speakers").Delete(&speaker)
+	//if err != nil {
+	//	Log.WithField("module", "sql").WithError(err)
+	//	c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+	//	return
+	//}
+
+	result := db.Con.Delete(&speaker)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
 }

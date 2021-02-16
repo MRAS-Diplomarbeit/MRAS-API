@@ -9,11 +9,11 @@ type Permissions struct {
 	ID              int32           `gorm:"primaryKey;autoIncrement:true;unique" json:"-"`
 	Admin           bool            `gorm:"default:false;not null" json:"admin"`
 	CanEdit         bool            `gorm:"default:false;not null" json:"canedit"`
-	Speakers        []*Speaker      `gorm:"many2many:perm_speakers" json:"-"`
+	Speakers        []*Speaker      `gorm:"many2many:perm_speakers; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	SpeakerIDs      []int32         `gorm:"-" json:"speaker_ids"`
-	SpeakerGroups   []*SpeakerGroup `gorm:"many2many:perm_speakergroups" json:"-"`
+	SpeakerGroups   []*SpeakerGroup `gorm:"many2many:perm_speakergroups; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	SpeakerGroupIDs []int32         `gorm:"-" json:"speakergroup_ids"`
-	Rooms           []*Room         `gorm:"many2many:perm_rooms" json:"-"`
+	Rooms           []*Room         `gorm:"many2many:perm_rooms; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	RoomIDs         []int32         `gorm:"-" json:"room_ids"`
 }
 
@@ -37,7 +37,7 @@ type UserGroup struct {
 	Name        string      `gorm:"size:100" json:"name"`
 	PermID      int32       `json:"perm_id"`
 	Permissions Permissions `gorm:"foreignKey:PermID; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
-	Users       []*User     `gorm:"many2many:user_usergroups" json:"-"`
+	Users       []*User     `gorm:"many2many:user_usergroups; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	UserIDs     []int32     `gorm:"-" json:"user_id"`
 }
 
@@ -62,7 +62,7 @@ type Position struct {
 type SpeakerGroup struct {
 	ID         int32      `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
 	Name       string     `gorm:"not null;size:100" json:"name"`
-	Speaker    []*Speaker `gorm:"many2many:speakergroup_speakers" json:"-"`
+	Speaker    []*Speaker `gorm:"many2many:speakergroup_speakers; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	SpeakerIds []int32    `gorm:"-" json:"speaker_ids"`
 }
 
@@ -85,7 +85,7 @@ type Sessions struct {
 	Speaker     Speaker    `gorm:"foreignKey:SpeakerID" json:"-"`
 	DisplayName string     `json:"displayname"`
 	Method      string     `json:"method"`
-	Speakers    []*Speaker `gorm:"many2many:session_speakers" json:"-"`
+	Speakers    []*Speaker `gorm:"many2many:session_speakers; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	SpeakerIPs  []string   `gorm:"-" json:"ips"`
 	CreatedAt   time.Time
 }

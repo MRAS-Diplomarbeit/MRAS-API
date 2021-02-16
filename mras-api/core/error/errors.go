@@ -15,12 +15,16 @@ var (
 	AUTH007 = Error{Code: "AUTH007", Message: "Wrong Reset Code"}
 	AUTH008 = Error{Code: "AUTH008", Message: "Password not Reset"}
 	AUTH009 = Error{Code: "AUTH009", Message: "User not Authorized for this Action"}
+
 	DBSQ001 = Error{Code: "DBSQ001", Message: "Error Accessing Database"}
 	DBSQ002 = Error{Code: "DBSQ002", Message: "Error Saving RefreshToken in Database"}
 	DBSQ003 = Error{Code: "DBSQ003", Message: "Error Accessing Redis"}
 	DBSQ004 = Error{Code: "DBSQ004", Message: "Error Reseting User Password"}
 	DBSQ005 = Error{Code: "DBSQ005", Message: "Error Saving new Password"}
 	DBSQ006 = Error{Code: "DBSQ006", Message: "User ID not Found"}
+	DBSQ007 = Error{Code: "DBSQ007", Message: "Error Saving Speaker"}
+	DBSQ008 = Error{Code: "DBSQ008", Message: "Speaker ID not Found"}
+
 	RQST001 = Error{Code: "RQST001", Message: "Error decoding Request"}
 	RQST002 = Error{Code: "RQST002", Message: "Request Body missing fields"}
 	CLIE001 = Error{Code: "CLIE001", Message: "Speaker/s not active"}

@@ -14,5 +14,5 @@ func GenerateCode() string {
 	var repl = strings.NewReplacer("'", "")
 	code = repl.Replace(code)
 
-	return code
+	return strings.ToLower(code)
 }

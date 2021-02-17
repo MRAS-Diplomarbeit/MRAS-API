@@ -15,7 +15,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -178,28 +177,73 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	user := mysql.User{}
-	user.Username = request.Username
-	var exists int64
-
-	//Check if Username already exists in Database
-	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+	var empty int64
+	result := db.Con.Model(&mysql.User{}).Count(&empty)
 	if result.Error != nil {
 		Log.WithField("module", "handler").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
-	Log.WithField("module", "handler").Debug("Users found: ", exists)
 
-	if exists != 0 {
-		Log.WithField("module", "handler").Error("Username already exists in Database")
-		c.AbortWithStatusJSON(http.StatusForbidden, errs.AUTH004)
-		return
+	user := mysql.User{}
+	perms := mysql.Permissions{}
+	defaultGroup := mysql.UserGroup{}
+
+	if empty == 0 {
+
+		perms.Admin = true
+		perms.CanEdit = true
+
+		defaultGroupPerms := mysql.Permissions{CanEdit: false, Admin: false}
+
+		defaultGroup.Name = "default"
+
+		result = db.Con.Save(&defaultGroupPerms)
+		if result.Error != nil {
+			Log.WithField("module", "handler").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+
+		defaultGroup.Permissions = defaultGroupPerms
+
+		result = db.Con.Save(&defaultGroup)
+		if result.Error != nil {
+			Log.WithField("module", "handler").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+
+	} else {
+		var exists int64
+		//Check if Username already exists in Database
+		result = db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+		if result.Error != nil {
+			Log.WithField("module", "handler").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+		Log.WithField("module", "handler").Debug("Users found: ", exists)
+
+		if exists != 0 {
+			Log.WithField("module", "handler").Error("Username already exists in Database")
+			c.AbortWithStatusJSON(http.StatusForbidden, errs.AUTH004)
+			return
+		}
+
+		perms.Admin = false
+		perms.CanEdit = false
+
+		defaultGroup.Name = "default"
+		result = db.Con.Model(&defaultGroup).Find(&defaultGroup)
+		if result.Error != nil {
+			Log.WithField("module", "handler").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+
 	}
 
-	perms := mysql.Permissions{}
-	perms.Admin = true
-	perms.CanEdit = true
 	//Create permission entry for new user in permissions table
 	result = db.Con.Save(&perms)
 	if result.Error != nil {
@@ -212,13 +256,10 @@ func RegisterUser(c *gin.Context) {
 	user.Password = request.Password
 	user.AvatarID = "default"
 	user.PermID = perms.ID
-	user.ResetCode = strings.ToLower(utils.GenerateCode())
+	user.UserGroups = append(user.UserGroups, &defaultGroup)
+	user.ResetCode = utils.GenerateCode()
 
 	Log.WithField("model", "handler").Debug(user)
-
-	//for _, group := range user.UserGroups {
-	//	user.UserGroupIDs = append(user.UserGroupIDs, group.ID)
-	//}
 
 	//Save new user to users database
 	result = db.Con.Save(&user)

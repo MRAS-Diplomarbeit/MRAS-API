@@ -94,7 +94,7 @@ func UpdateSpeaker(c *gin.Context) {
 
 	var rights int64
 
-	result := db.Con.Where("((speakers.id in (select speaker_id from perm_speakers"+
+	result := db.Con.Model(&mysql.Speaker{}).Where("((speakers.id in (select speaker_id from perm_speakers"+
 		"where permissions_id = (select perm_id from users where users.id = ?))) or"+
 		"(speakers.id in (select speaker_id from perm_speakers where permissions_id = any"+
 		"(select perm_id from user_groups where user_groups.id = any"+

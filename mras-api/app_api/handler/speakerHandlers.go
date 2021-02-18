@@ -94,16 +94,12 @@ func UpdateSpeaker(c *gin.Context) {
 
 	var rights int64
 
-	result := db.Con.Model(&mysql.Speaker{}).Where("((speakers.id in (select speaker_id from perm_speakers"+
-		"where permissions_id = (select perm_id from users where users.id = ?))) or"+
-		"(speakers.id in (select speaker_id from perm_speakers where permissions_id = any"+
-		"(select perm_id from user_groups where user_groups.id = any"+
-		"(select user_group_id from user_usergroups where user_id = ?)))) or"+
-		"((select admin from permissions where id = (select perm_id from users where users.id = ?)) = true) or"+
-		"((select admin from permissions where permissions.id = any "+
-		"(select perm_id from user_groups where user_groups.id = any"+
-		"(select user_group_id from user_usergroups where user_id = ?))) = true))"+
-		"and speakers.id = ?", reqUserId, reqUserId, reqUserId, reqUserId, updtSpeaker.ID.Int64).Count(&rights)
+	result := db.Con.Model(&mysql.Speaker{}).Where("((speakers.id in (select speaker_id from perm_speakers where permissions_id = (select perm_id from users where users.id = ?))) "+
+		"or (speakers.id in (select speaker_id from perm_speakers where permissions_id = any (select perm_id from user_groups where user_groups.id = any (select user_group_id from user_usergroups where user_id = ?)))) "+
+		"or ((select admin from permissions where id = (select perm_id from users where users.id = ?)) = true) "+
+		"or ((select admin from permissions where permissions.id = any (select perm_id from user_groups where user_groups.id = any (select user_group_id from user_usergroups where user_id = ?))) = true)) "+
+		"and speakers.id = ?",
+		reqUserId, reqUserId, reqUserId, reqUserId, updtSpeaker.ID.Int64).Count(&rights)
 
 	if rights == 0 {
 		Log.WithField("module", "sql").WithError(result.Error)

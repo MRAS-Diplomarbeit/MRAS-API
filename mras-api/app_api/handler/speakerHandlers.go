@@ -41,7 +41,7 @@ func GetAllSpeakers(c *gin.Context) {
 		"(select admin from permissions where permissions.id = any"+
 		"(select perm_id from user_groups where user_groups.id = any"+
 		"(select user_group_id from user_usergroups where user_id = ?))) = true)"+
-		"and speakers.alive = true", userid, userid, userid).Find(&speakers)
+		"and speakers.alive = true", userid, userid, userid, userid).Find(&speakers)
 
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)

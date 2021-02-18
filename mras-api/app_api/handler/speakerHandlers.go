@@ -32,11 +32,16 @@ func GetAllSpeakers(c *gin.Context) {
 
 	//Get all Speakers from Database
 	result := db.Con.Where("(speakers.id in (select speaker_id from perm_speakers where permissions_id ="+
-		" (select perm_id from users where users.id = ?)) or "+
-		"speakers.id in (select speaker_id from perm_speakers where permissions_id ="+
-		" (select perm_id from user_groups where user_groups.id in "+
-		"(select user_group_id from user_usergroups where user_id = ?)))) "+
-		"and speakers.alive = true", userid, userid).Find(&speakers)
+		"(select perm_id from users where users.id = ?)) or "+
+		"speakers.id = any (select speaker_id from perm_speakers where permissions_id = any"+
+		"(select perm_id from user_groups where user_groups.id = any"+
+		"(select user_group_id from user_usergroups where user_id = ?))) or"+
+		"(select admin from permissions where id = "+
+		"(select perm_id from users where users.id = ?)) = true or"+
+		"(select admin from permissions where permissions.id = any"+
+		"(select perm_id from user_groups where user_groups.id = any"+
+		"(select user_group_id from user_usergroups where user_id = ?))) = true)"+
+		"and speakers.alive = true", userid, userid, userid).Find(&speakers)
 
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
@@ -85,10 +90,31 @@ func UpdateSpeaker(c *gin.Context) {
 		return
 	}
 
+	reqUserId, _ := c.Get("userid")
+
+	var rights int64
+
+	result := db.Con.Where("((speakers.id in (select speaker_id from perm_speakers"+
+		"where permissions_id = (select perm_id from users where users.id = ?))) or"+
+		"(speakers.id in (select speaker_id from perm_speakers where permissions_id = any"+
+		"(select perm_id from user_groups where user_groups.id = any"+
+		"(select user_group_id from user_usergroups where user_id = ?)))) or"+
+		"((select admin from permissions where id = (select perm_id from users where users.id = ?)) = true) or"+
+		"((select admin from permissions where permissions.id = any "+
+		"(select perm_id from user_groups where user_groups.id = any"+
+		"(select user_group_id from user_usergroups where user_id = ?))) = true))"+
+		"and speakers.id = ?", reqUserId, reqUserId, reqUserId, reqUserId, updtSpeaker.ID.Int64).Count(&rights)
+
+	if rights == 0 {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH009)
+		return
+	}
+
 	var ogSpeaker mysql.Speaker
 	ogSpeaker.ID = int32(updtSpeaker.ID.Int64)
 
-	result := db.Con.Find(&ogSpeaker)
+	result = db.Con.Find(&ogSpeaker)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			Log.WithField("module", "sql").WithError(result.Error)

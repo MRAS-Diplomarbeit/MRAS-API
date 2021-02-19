@@ -10,7 +10,12 @@ func SetupClientRouter() *gin.Engine {
 
 	router := gin.New()
 	router.Use(coremiddleware.LoggerMiddleware("client"))
-	router.GET("/test", handler.TestHandler)
+
+	env := &handler.Env{}
+	env.Initialize()
+
+	router.GET("/discover", env.DiscoverNew)
+	router.GET("/discover/:id", env.Lifesign)
 
 	return router
 }

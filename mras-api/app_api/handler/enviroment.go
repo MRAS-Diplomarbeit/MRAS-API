@@ -7,20 +7,17 @@ import (
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 )
 
-var rdis *redis.RedisServices
-var db *mysql.SqlServices
+type Env struct {
+	db   *mysql.SqlServices
+	rdis *redis.RedisServices
+}
 
-//Connect to redis database
-func connectRedis() {
+func (env *Env) Initialize() {
+	env.db = mysql.GormService().Connect(config.MySQL)
+
 	var err error
-	rdis, err = redis.RedisDBService().Initialize(config.Redis)
+	env.rdis, err = redis.RedisDBService().Initialize(config.Redis)
 	if err != nil {
 		Log.WithField("module", "redis").WithError(err)
 	}
-
-}
-
-//create connections to mysql database
-func connectMySql() {
-	db = mysql.GormService().Connect(config.MySQL)
 }

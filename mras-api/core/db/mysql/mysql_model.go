@@ -36,9 +36,9 @@ type UserGroup struct {
 	ID          int32       `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
 	Name        string      `gorm:"size:100" json:"name"`
 	PermID      int32       `json:"perm_id"`
-	Permissions Permissions `gorm:"foreignKey:PermID; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	Permissions Permissions `gorm:"foreignKey:PermID; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"perms"`
 	Users       []*User     `gorm:"many2many:user_usergroups; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
-	UserIDs     []int32     `gorm:"-" json:"user_id"`
+	UserIDs     []int32     `gorm:"-" json:"user_ids"`
 }
 
 type Speaker struct {

@@ -33,7 +33,6 @@ func (service *RedisServices) Initialize(conf map[string]interface{}) (*RedisSer
 	if err != nil {
 		return service, err
 	}
-
 	Log.WithField("module", "redis").Info("Redis connection established!")
 	return service, nil
 }

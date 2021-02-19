@@ -19,17 +19,7 @@ import (
 )
 
 //This function handles POST requests sent to the /api/v1/user/login endpoint
-func LoginUser(c *gin.Context) {
-
-	//Check if redis database connection is already established and create one if not
-	if rdis == nil {
-		connectRedis()
-	}
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) LoginUser(c *gin.Context) {
 
 	type loginRequest struct {
 		Username string `json:"username"`
@@ -68,7 +58,7 @@ func LoginUser(c *gin.Context) {
 	user := mysql.User{}
 
 	//lookup user in users database
-	result := db.Con.Where("upper(username) = upper(?) AND password = ?", request.Username, request.Password).First(&user)
+	result := env.db.Con.Where("upper(username) = upper(?) AND password = ?", request.Username, request.Password).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			Log.WithField("module", "handler").WithError(result.Error)
@@ -81,7 +71,7 @@ func LoginUser(c *gin.Context) {
 		}
 	}
 
-	err = db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
+	err = env.db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
 	if err != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -102,7 +92,7 @@ func LoginUser(c *gin.Context) {
 	}
 
 	//Add AccessToken to Redis
-	err = rdis.AddPair(fmt.Sprint(user.ID), accessToken, time.Hour*24)
+	err = env.rdis.AddPair(fmt.Sprint(user.ID), accessToken, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "redis").WithError(err).Error("Error adding AccessToken to Redis.")
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ003)
@@ -119,7 +109,7 @@ func LoginUser(c *gin.Context) {
 
 	//Save RefreshToken to Database
 	user.RefreshToken = refreshToken
-	result = db.Con.Save(&user)
+	result = env.db.Con.Save(&user)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ002)
@@ -130,17 +120,7 @@ func LoginUser(c *gin.Context) {
 }
 
 //This function handles POST requests sent to the /api/v1/user/register endpoint
-func RegisterUser(c *gin.Context) {
-
-	//Check if redis database connection is already established and create one if not
-	if rdis == nil {
-		connectRedis()
-	}
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) RegisterUser(c *gin.Context) {
 
 	type registerRequest struct {
 		Username string `json:"username"`
@@ -178,7 +158,7 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	var empty int64
-	result := db.Con.Model(&mysql.User{}).Count(&empty)
+	result := env.db.Con.Model(&mysql.User{}).Count(&empty)
 	if result.Error != nil {
 		Log.WithField("module", "handler").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -198,7 +178,7 @@ func RegisterUser(c *gin.Context) {
 
 		defaultGroup.Name = "default"
 
-		result = db.Con.Save(&defaultGroupPerms)
+		result = env.db.Con.Save(&defaultGroupPerms)
 		if result.Error != nil {
 			Log.WithField("module", "handler").WithError(result.Error)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -207,7 +187,7 @@ func RegisterUser(c *gin.Context) {
 
 		defaultGroup.Permissions = defaultGroupPerms
 
-		result = db.Con.Save(&defaultGroup)
+		result = env.db.Con.Save(&defaultGroup)
 		if result.Error != nil {
 			Log.WithField("module", "handler").WithError(result.Error)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -217,7 +197,7 @@ func RegisterUser(c *gin.Context) {
 	} else {
 		var exists int64
 		//Check if Username already exists in Database
-		result = db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+		result = env.db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
 		if result.Error != nil {
 			Log.WithField("module", "handler").WithError(result.Error)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -235,7 +215,7 @@ func RegisterUser(c *gin.Context) {
 		perms.CanEdit = false
 
 		defaultGroup.Name = "default"
-		result = db.Con.Model(&defaultGroup).Find(&defaultGroup)
+		result = env.db.Con.Model(&defaultGroup).Find(&defaultGroup)
 		if result.Error != nil {
 			Log.WithField("module", "handler").WithError(result.Error)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -245,7 +225,7 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	//Create permission entry for new user in permissions table
-	result = db.Con.Save(&perms)
+	result = env.db.Con.Save(&perms)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -262,7 +242,7 @@ func RegisterUser(c *gin.Context) {
 	Log.WithField("model", "handler").Debug(user)
 
 	//Save new user to users database
-	result = db.Con.Save(&user)
+	result = env.db.Con.Save(&user)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -278,7 +258,7 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	//Add AccessToken to Redis
-	err = rdis.AddPair(fmt.Sprint(user.ID), accessToken, time.Hour*24)
+	err = env.rdis.AddPair(fmt.Sprint(user.ID), accessToken, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "redis").WithError(err).Error("Error adding AccessToken to Redis.")
 		err = nil
@@ -295,7 +275,7 @@ func RegisterUser(c *gin.Context) {
 	user.RefreshToken = refreshToken
 
 	//Save RefreshToken to Database
-	result = db.Con.Save(&user)
+	result = env.db.Con.Save(&user)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ002)
@@ -306,17 +286,7 @@ func RegisterUser(c *gin.Context) {
 }
 
 //This function handles POST requests sent to the /api/v1/user/refresh endpoint
-func GenerateAccessToken(c *gin.Context) {
-
-	//Check if redis database connection is already established and create one if not
-	if rdis == nil {
-		connectRedis()
-	}
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) GenerateAccessToken(c *gin.Context) {
 
 	type refreshRequest struct {
 		RefreshToken string `json:"refresh_token"`
@@ -358,7 +328,7 @@ func GenerateAccessToken(c *gin.Context) {
 	var exists int64
 
 	//Check if Refresh Token is valid
-	result := db.Con.Model(&user).Where("id = ? and refresh_token = ?", user.ID, request.RefreshToken).Count(&exists)
+	result := env.db.Con.Model(&user).Where("id = ? and refresh_token = ?", user.ID, request.RefreshToken).Count(&exists)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -382,7 +352,7 @@ func GenerateAccessToken(c *gin.Context) {
 	}
 
 	//Add AccessToken to Redis
-	err = rdis.AddPair(fmt.Sprint(user.ID), accessToken, time.Hour*24)
+	err = env.rdis.AddPair(fmt.Sprint(user.ID), accessToken, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "redis").WithError(err).Error("Error adding AccessToken to Redis.")
 		err = nil
@@ -393,12 +363,7 @@ func GenerateAccessToken(c *gin.Context) {
 }
 
 //This function handles POST requests sent to the /api/v1/user/password/reset/:username endpoint
-func ResetUserPassword(c *gin.Context) {
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) ResetUserPassword(c *gin.Context) {
 
 	type resetUserPasswordRequest struct {
 		ResetCode string `json:"reset_code"`
@@ -427,7 +392,7 @@ func ResetUserPassword(c *gin.Context) {
 	var exists int64
 
 	//Check if Username exists in Database
-	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+	result := env.db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -441,7 +406,7 @@ func ResetUserPassword(c *gin.Context) {
 	}
 
 	//Check Database if ResetCode is correct
-	result = db.Con.Where("upper(username) = upper(?) and reset_code = ?", user.Username, user.ResetCode).First(&user)
+	result = env.db.Con.Where("upper(username) = upper(?) and reset_code = ?", user.Username, user.ResetCode).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			Log.WithField("module", "handler").Error("ResetCode Username combination not found (incorrect)")
@@ -457,7 +422,7 @@ func ResetUserPassword(c *gin.Context) {
 	//Reset Password in Database
 	user.Password = "RESET"
 	user.PasswordReset = true
-	result = db.Con.Save(&user)
+	result = env.db.Con.Save(&user)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ004)
@@ -466,12 +431,7 @@ func ResetUserPassword(c *gin.Context) {
 }
 
 //This function handles POST requests sent to the /api/v1/user/password/new/:username endpoint
-func NewUserPassword(c *gin.Context) {
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) NewUserPassword(c *gin.Context) {
 
 	type newUserPasswordRequest struct {
 		Password string `json:"password"`
@@ -499,7 +459,7 @@ func NewUserPassword(c *gin.Context) {
 	var exists int64
 
 	//Check if Username exists in Database
-	result := db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+	result := env.db.Con.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -513,7 +473,7 @@ func NewUserPassword(c *gin.Context) {
 	}
 
 	//check if Password is reset
-	result = db.Con.Where("upper(username) = upper(?) and password = ? and password_reset = ?", user.Username, "RESET", true).First(&user)
+	result = env.db.Con.Where("upper(username) = upper(?) and password = ? and password_reset = ?", user.Username, "RESET", true).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			Log.WithField("module", "handler").Error("Username and ResetCode combination not found!")
@@ -529,7 +489,7 @@ func NewUserPassword(c *gin.Context) {
 	//Save new Password to Database
 	user.Password = request.Password
 	user.PasswordReset = false
-	result = db.Con.Save(&user)
+	result = env.db.Con.Save(&user)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ005)
@@ -539,12 +499,7 @@ func NewUserPassword(c *gin.Context) {
 }
 
 //This function handles GET requests sent to the /api/v1/user endpoint
-func GetAllUsers(c *gin.Context) {
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) GetAllUsers(c *gin.Context) {
 
 	type getAllUsersResponse struct {
 		Count int          `json:"count"`
@@ -554,7 +509,7 @@ func GetAllUsers(c *gin.Context) {
 	var users []mysql.User
 
 	//Get all Users from Database
-	result := db.Con.Find(&users)
+	result := env.db.Con.Find(&users)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -563,7 +518,7 @@ func GetAllUsers(c *gin.Context) {
 
 	//Add GroupIDs
 	for _, user := range users {
-		err := db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
+		err := env.db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
 		if err != nil {
 			Log.WithField("module", "sql").WithError(err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -579,12 +534,7 @@ func GetAllUsers(c *gin.Context) {
 }
 
 //This function handles GET requests sent to the /api/v1/user/:id endpoint
-func GetUser(c *gin.Context) {
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) GetUser(c *gin.Context) {
 
 	type getUserResponse struct {
 		User mysql.User `json:"user"`
@@ -602,7 +552,7 @@ func GetUser(c *gin.Context) {
 	user.ID = int32(tmp)
 
 	//Get User from Database
-	result := db.Con.First(&user)
+	result := env.db.Con.First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			Log.WithField("module", "handler").WithError(result.Error)
@@ -615,7 +565,7 @@ func GetUser(c *gin.Context) {
 		}
 	}
 
-	err = db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
+	err = env.db.Con.Model(&user).Association("UserGroups").Find(&user.UserGroups)
 	if err != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -631,12 +581,7 @@ func GetUser(c *gin.Context) {
 }
 
 //This function handles DELETE requests sent to the /api/v1/user/:id endpoint
-func DeleteUser(c *gin.Context) {
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) DeleteUser(c *gin.Context) {
 
 	//Convert ID Parameter into int32
 	tmp, err := strconv.Atoi(c.Param("id"))
@@ -651,7 +596,7 @@ func DeleteUser(c *gin.Context) {
 
 	//Check if UserID
 	var exists int64
-	result := db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
+	result := env.db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -667,7 +612,7 @@ func DeleteUser(c *gin.Context) {
 	if userid != reqUserId {
 		var user mysql.User
 
-		result := db.Con.Where("id = ?", reqUserId).First(&user)
+		result := env.db.Con.Where("id = ?", reqUserId).First(&user)
 		if result.Error != nil {
 			Log.WithField("module", "sql").WithError(result.Error)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -676,7 +621,7 @@ func DeleteUser(c *gin.Context) {
 
 		Log.Debug(user)
 
-		err = db.Con.Model(&user).Association("Permissions").Find(&user.Permissions)
+		err = env.db.Con.Model(&user).Association("Permissions").Find(&user.Permissions)
 		if err != nil {
 			Log.WithField("module", "sql").WithError(err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -690,7 +635,7 @@ func DeleteUser(c *gin.Context) {
 		}
 	}
 
-	result = db.Con.Delete(mysql.User{}, userid)
+	result = env.db.Con.Delete(mysql.User{}, userid)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			Log.WithField("module", "handler").WithError(result.Error)
@@ -706,17 +651,7 @@ func DeleteUser(c *gin.Context) {
 }
 
 //This function handles GET requests sent to the /api/v1/user/:id/logout endpoint
-func LogoutUser(c *gin.Context) {
-
-	//Check if redis database connection is already established and create one if not
-	if rdis == nil {
-		connectRedis()
-	}
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) LogoutUser(c *gin.Context) {
 
 	//Convert ID Parameter into int32
 	tmp, err := strconv.Atoi(c.Param("id"))
@@ -731,7 +666,7 @@ func LogoutUser(c *gin.Context) {
 
 	//Check if UserID exists
 	var exists int64
-	result := db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
+	result := env.db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -747,7 +682,7 @@ func LogoutUser(c *gin.Context) {
 	if userid != reqUserId {
 		var user mysql.User
 
-		result := db.Con.Where("id = ?", reqUserId).First(&user)
+		result := env.db.Con.Where("id = ?", reqUserId).First(&user)
 		if result.Error != nil {
 			Log.WithField("module", "sql").WithError(result.Error)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -756,7 +691,7 @@ func LogoutUser(c *gin.Context) {
 
 		Log.Debug(user)
 
-		err = db.Con.Model(&user).Association("Permissions").Find(&user.Permissions)
+		err = env.db.Con.Model(&user).Association("Permissions").Find(&user.Permissions)
 		if err != nil {
 			Log.WithField("module", "sql").WithError(err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -770,14 +705,14 @@ func LogoutUser(c *gin.Context) {
 		}
 	}
 
-	err = rdis.Remove(fmt.Sprint(userid))
+	err = env.rdis.Remove(fmt.Sprint(userid))
 	if err != nil {
 		Log.WithField("module", "redis").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ003)
 		return
 	}
 
-	result = db.Con.Model(&mysql.User{}).Where("id = ?", userid).Update("refresh_token", "")
+	result = env.db.Con.Model(&mysql.User{}).Where("id = ?", userid).Update("refresh_token", "")
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -786,12 +721,7 @@ func LogoutUser(c *gin.Context) {
 }
 
 //This function handles GET requests sent to the /api/v1/user/:id/permissions endpoint
-func GetPermissions(c *gin.Context) {
-
-	//Check if mysql database connection is already established and create one if not
-	if db == nil {
-		connectMySql()
-	}
+func (env *Env) GetPermissions(c *gin.Context) {
 
 	type getPermsResponse struct {
 		Perms mysql.Permissions `json:"perms"`
@@ -808,7 +738,7 @@ func GetPermissions(c *gin.Context) {
 
 	//Check if UserID exists
 	var exists int64
-	result := db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
+	result := env.db.Con.Model(mysql.User{}).Where("id = ?", userid).Count(&exists)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -823,28 +753,28 @@ func GetPermissions(c *gin.Context) {
 
 	var perm mysql.Permissions
 
-	err = db.Con.Model(mysql.User{}).Where("id = ?", userid).Association("Permissions").Find(&perm)
+	err = env.db.Con.Model(mysql.User{}).Where("id = ?", userid).Association("Permissions").Find(&perm)
 	if err != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
-	err = db.Con.Model(&perm).Association("Speakers").Find(&perm.Speakers)
+	err = env.db.Con.Model(&perm).Association("Speakers").Find(&perm.Speakers)
 	if err != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
-	err = db.Con.Model(&perm).Association("Rooms").Find(&perm.Rooms)
+	err = env.db.Con.Model(&perm).Association("Rooms").Find(&perm.Rooms)
 	if err != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
-	err = db.Con.Model(&perm).Association("SpeakerGroups").Find(&perm.SpeakerGroups)
+	err = env.db.Con.Model(&perm).Association("SpeakerGroups").Find(&perm.SpeakerGroups)
 	if err != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -866,8 +796,8 @@ func GetPermissions(c *gin.Context) {
 	c.JSON(http.StatusOK, getPermsResponse{Perms: perm})
 }
 
-//This function handles PATCH requests sent to the /api/v1/user/:id/permissions endpoint
-func UpdatePermissions(c *gin.Context) {
+//TODO: This function handles PATCH requests sent to the /api/v1/user/:id/permissions endpoint
+func (env *Env) UpdatePermissions(c *gin.Context) {
 
 	////Check if mysql database connection is already established and create one if not
 	//if db == nil {

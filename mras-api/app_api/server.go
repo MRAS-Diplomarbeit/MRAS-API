@@ -33,8 +33,8 @@ func SetupApiRouter() *gin.Engine {
 	authRouter.DELETE("/user/:id", env.DeleteUser)
 	authRouter.GET("/user/:id/logout", env.LogoutUser)
 
-	authRouter.GET("/user/:id/permissions", env.GetPermissions)
-	authRouter.PATCH("/user/:id/permissions", env.UpdatePermissions)
+	authRouter.GET("/user/:id/permissions", env.GetUserPermissions)
+	authRouter.PATCH("/user/:id/permissions", env.UpdateUserPermissions)
 
 	authRouter.GET("/group/user", env.GetAllUserGroups)
 	authRouter.POST("/group/user", env.CreateUserGroup)

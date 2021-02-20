@@ -26,7 +26,7 @@ func (env *Env) GetAllSpeakers(c *gin.Context) {
 	userid, _ := c.Get("userid")
 
 	//Get all Speakers from Database
-	result := env.db.Con.Where("(speakers.id in (select speaker_id from perm_speakers where permissions_id ="+
+	result := env.db.Where("(speakers.id in (select speaker_id from perm_speakers where permissions_id ="+
 		"(select perm_id from users where users.id = ?)) or "+
 		"speakers.id = any (select speaker_id from perm_speakers where permissions_id = any"+
 		"(select perm_id from user_groups where user_groups.id = any"+
@@ -84,7 +84,7 @@ func (env *Env) UpdateSpeaker(c *gin.Context) {
 
 	var rights int64
 
-	result := env.db.Con.Model(&mysql.Speaker{}).Where("((speakers.id in (select speaker_id from perm_speakers where permissions_id = (select perm_id from users where users.id = ?))) "+
+	result := env.db.Model(&mysql.Speaker{}).Where("((speakers.id in (select speaker_id from perm_speakers where permissions_id = (select perm_id from users where users.id = ?))) "+
 		"or (speakers.id in (select speaker_id from perm_speakers where permissions_id = any (select perm_id from user_groups where user_groups.id = any (select user_group_id from user_usergroups where user_id = ?)))) "+
 		"or ((select admin from permissions where id = (select perm_id from users where users.id = ?)) = true) "+
 		"or ((select admin from permissions where permissions.id = any (select perm_id from user_groups where user_groups.id = any (select user_group_id from user_usergroups where user_id = ?))) = true)) "+
@@ -100,7 +100,7 @@ func (env *Env) UpdateSpeaker(c *gin.Context) {
 	var ogSpeaker mysql.Speaker
 	ogSpeaker.ID = int32(updtSpeaker.ID.Int64)
 
-	result = env.db.Con.Find(&ogSpeaker)
+	result = env.db.Find(&ogSpeaker)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			Log.WithField("module", "sql").WithError(result.Error)
@@ -128,7 +128,7 @@ func (env *Env) UpdateSpeaker(c *gin.Context) {
 		ogSpeaker.RoomID = updtSpeaker.RoomID
 	}
 
-	result = env.db.Con.Save(&ogSpeaker)
+	result = env.db.Save(&ogSpeaker)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ007)
@@ -150,7 +150,7 @@ func (env *Env) GetSpeaker(c *gin.Context) {
 	}
 	speaker.ID = int32(tmp)
 
-	result := env.db.Con.Find(&speaker)
+	result := env.db.Find(&speaker)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -196,7 +196,7 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 	}
 
 	var speaker mysql.Speaker
-	result := env.db.Con.Where("id = ?", c.Param("id")).First(&speaker)
+	result := env.db.Where("id = ?", c.Param("id")).First(&speaker)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -227,7 +227,7 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 		session.DisplayName = request.DisplayName
 		session.Method = request.Method
 
-		result = env.db.Con.Save(&session)
+		result = env.db.Save(&session)
 		if result.Error != nil {
 
 			type stopPlayback struct {
@@ -254,7 +254,7 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 
 	if res.StatusCode == 404 {
 		for _, ip := range response.DeadIps {
-			result = env.db.Con.Model(&mysql.Speaker{}).Where("ip_address = ?", ip).Update("alive", false)
+			result = env.db.Model(&mysql.Speaker{}).Where("ip_address = ?", ip).Update("alive", false)
 			if result.Error != nil {
 				Log.WithField("module", "sql").WithError(result.Error)
 				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -282,21 +282,21 @@ func (env *Env) StopPlaybackSpeaker(c *gin.Context) {
 
 	var session mysql.Sessions
 
-	result := env.db.Con.Model(&session).Where("speaker_id = ? or id = (select sessions_id from session_speakers where session_speakers.speaker_id = ?)", speakerid, speakerid).Find(&session)
+	result := env.db.Model(&session).Where("speaker_id = ? or id = (select sessions_id from session_speakers where session_speakers.speaker_id = ?)", speakerid, speakerid).Find(&session)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
-	err = env.db.Con.Model(&mysql.Speaker{}).Association("Speakers").Find(&session.Speaker)
+	err = env.db.Model(&mysql.Speaker{}).Association("Speakers").Find(&session.Speaker)
 	if err != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
-	err = env.db.Con.Model(&mysql.Speaker{}).Association("Speakers").Find(&session.Speakers)
+	err = env.db.Model(&mysql.Speaker{}).Association("Speakers").Find(&session.Speakers)
 	if err != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -318,7 +318,7 @@ func (env *Env) StopPlaybackSpeaker(c *gin.Context) {
 	defer res.Body.Close()
 
 	if res.StatusCode == 200 {
-		result = env.db.Con.Delete(&session)
+		result = env.db.Delete(&session)
 		if result.Error != nil {
 			Log.WithField("module", "sql").WithError(result.Error)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -340,14 +340,14 @@ func (env *Env) RemoveSpeaker(c *gin.Context) {
 	}
 	speaker.ID = int32(tmp)
 
-	//err = db.Con.Model(&mysql.Permissions{}).Association("Speakers").Delete(&speaker)
+	//err = db.Model(&mysql.Permissions{}).Association("Speakers").Delete(&speaker)
 	//if err != nil {
 	//	Log.WithField("module", "sql").WithError(err)
 	//	c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 	//	return
 	//}
 
-	result := env.db.Con.Delete(&speaker)
+	result := env.db.Delete(&speaker)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)

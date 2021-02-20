@@ -8,6 +8,7 @@ import (
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"gopkg.in/guregu/null.v4"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -22,7 +23,7 @@ func (env *Env) GetAllUserGroups(c *gin.Context) {
 
 	var groups []mysql.UserGroup
 
-	result := env.db.Con.Find(&groups)
+	result := env.db.Find(&groups)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -56,7 +57,7 @@ func (env *Env) CreateUserGroup(c *gin.Context) {
 		return
 	}
 
-	result := env.db.Con.Save(&reqUserGroup.Perms)
+	result := env.db.Save(&reqUserGroup.Perms)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -65,7 +66,7 @@ func (env *Env) CreateUserGroup(c *gin.Context) {
 
 	newUserGroup := mysql.UserGroup{Name: reqUserGroup.Name, PermID: reqUserGroup.Perms.ID, UserIDs: reqUserGroup.UserIds}
 
-	result = env.db.Con.Save(&newUserGroup)
+	result = env.db.Save(&newUserGroup)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -87,7 +88,7 @@ func (env *Env) GetUserGroup(c *gin.Context) {
 	}
 	userGroup.ID = int32(tmp)
 
-	result := env.db.Con.Find(&userGroup)
+	result := env.db.Find(&userGroup)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -99,18 +100,18 @@ func (env *Env) GetUserGroup(c *gin.Context) {
 
 func (env *Env) UpdateUserGroup(c *gin.Context) {
 
-	type updPerm struct {
-		Admin           null.Bool `json:"admin"`
-		CanEdit         null.Bool `json:"canedit"`
-		SpeakerIDs      []int32   `json:"speaker_ids"`
-		SpeakerGroupIDs []int32   `json:"speakergroup_ids"`
-		RoomIDs         []int32   `json:"room_ids"`
-	}
+	//type updPerm struct {
+	//	Admin           null.Bool `json:"admin"`
+	//	CanEdit         null.Bool `json:"canedit"`
+	//	SpeakerIDs      []int32   `json:"speaker_ids"`
+	//	SpeakerGroupIDs []int32   `json:"speakergroup_ids"`
+	//	RoomIDs         []int32   `json:"room_ids"`
+	//}
 
 	type reqUpdtUserGroup struct {
 		ID      int         `json:"id"`
 		Name    null.String `json:"name"`
-		Perms   updPerm     `json:"perms"`
+		Perms   updtPerm    `json:"perms"`
 		UserIds []int32     `json:"user_ids"`
 	}
 
@@ -122,8 +123,8 @@ func (env *Env) UpdateUserGroup(c *gin.Context) {
 		return
 	}
 
-	var uptdUserGroup reqUpdtUserGroup
-	err = json.Unmarshal(jsonData, &uptdUserGroup)
+	var updtUserGroup reqUpdtUserGroup
+	err = json.Unmarshal(jsonData, &updtUserGroup)
 	if err != nil {
 		Log.WithField("module", "handler").WithError(err)
 		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
@@ -131,9 +132,9 @@ func (env *Env) UpdateUserGroup(c *gin.Context) {
 	}
 
 	var ogUserGroup mysql.UserGroup
-	ogUserGroup.ID = int32(uptdUserGroup.ID)
+	ogUserGroup.ID = int32(updtUserGroup.ID)
 
-	result := env.db.Con.Find(&ogUserGroup)
+	result := env.db.Preload(clause.Associations).Find(&ogUserGroup)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			Log.WithField("module", "sql").WithError(result.Error)
@@ -145,41 +146,36 @@ func (env *Env) UpdateUserGroup(c *gin.Context) {
 		return
 	}
 
-	err = env.db.Con.Model(&ogUserGroup).Association("Permissions").Find(&ogUserGroup.Permissions)
-	if err != nil {
-		Log.WithField("module", "sql").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+	if error := env.updatePermissions(&ogUserGroup.Permissions, updtUserGroup.Perms); error != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, error)
 		return
 	}
 
-	if uptdUserGroup.Name.Valid {
-		ogUserGroup.Name = uptdUserGroup.Name.String
-	}
-	if uptdUserGroup.Perms.Admin.Valid {
-		ogUserGroup.Permissions.Admin = uptdUserGroup.Perms.Admin.Bool
-	}
-	if uptdUserGroup.Perms.CanEdit.Valid {
-		ogUserGroup.Permissions.CanEdit = uptdUserGroup.Perms.CanEdit.Bool
-	}
-	//TODO: Fix Update Permission
-	//if len(uptdUserGroup.Perms.SpeakerIDs) != len(ogUserGroup.Permissions.Speakers) {
-	//	ogUserGroup.Permissions.SpeakerIDs = uptdUserGroup.Perms.SpeakerIDs
-	//}
-	//if uptdUserGroup.Perms.SpeakerGroupIDs != nil {
-	//	ogUserGroup.Permissions.SpeakerGroupIDs = uptdUserGroup.Perms.SpeakerGroupIDs
-	//}
-	//if uptdUserGroup.Perms.RoomIDs != nil {
-	//	ogUserGroup.Permissions.RoomIDs = uptdUserGroup.Perms.RoomIDs
-	//}
-
-	result = env.db.Con.Save(&ogUserGroup.Permissions)
-	if result.Error != nil {
-		Log.WithField("module", "sql").WithError(result.Error)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
-		return
+	if updtUserGroup.Name.Valid {
+		ogUserGroup.Name = updtUserGroup.Name.String
 	}
 
-	result = env.db.Con.Save(&ogUserGroup)
+	if updtUserGroup.UserIds != nil {
+		if len(updtUserGroup.UserIds) == 0 {
+			err := env.db.Model(&updtUserGroup).Association("Users").Clear()
+			if err != nil {
+				Log.WithField("module", "sql").WithError(err)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			}
+		} else {
+			result = env.db.Find(&ogUserGroup, updtUserGroup.UserIds)
+			if result.Error != nil {
+				Log.WithField("module", "sql").WithError(result.Error)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			}
+		}
+	}
+
+	for _, users := range ogUserGroup.Users {
+		ogUserGroup.UserIDs = append(ogUserGroup.UserIDs, users.ID)
+	}
+
+	result = env.db.Save(&ogUserGroup)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -202,7 +198,7 @@ func (env *Env) DeleteUserGroup(c *gin.Context) {
 	}
 	userGroup.ID = int32(tmp)
 
-	result := env.db.Con.Delete(&userGroup)
+	result := env.db.Delete(&userGroup)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)

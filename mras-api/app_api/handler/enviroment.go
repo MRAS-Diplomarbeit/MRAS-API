@@ -5,15 +5,16 @@ import (
 	"github.com/mras-diplomarbeit/mras-api/core/db/mysql"
 	"github.com/mras-diplomarbeit/mras-api/core/db/redis"
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
+	"gorm.io/gorm"
 )
 
 type Env struct {
-	db   *mysql.SqlServices
+	db   *gorm.DB
 	rdis *redis.RedisServices
 }
 
 func (env *Env) Initialize() {
-	env.db = mysql.GormService().Connect(config.MySQL)
+	env.db = mysql.GormService().Connect(config.MySQL).Con
 
 	var err error
 	env.rdis, err = redis.RedisDBService().Initialize(config.Redis)

@@ -23,11 +23,17 @@ func (env *Env) GetAllUserGroups(c *gin.Context) {
 
 	var groups []mysql.UserGroup
 
-	result := env.db.Find(&groups)
+	result := env.db.Preload(clause.Associations).Find(&groups)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
+	}
+
+	for i := range groups {
+		for _, users := range groups[i].Users {
+			groups[i].UserIDs = append(groups[i].UserIDs, users.ID)
+		}
 	}
 
 	c.JSON(http.StatusOK, resAllUserGroups{Count: len(groups), UserGroups: groups})
@@ -93,6 +99,10 @@ func (env *Env) GetUserGroup(c *gin.Context) {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
+	}
+
+	for _, group := range userGroup.Users {
+		userGroup.UserIDs = append(userGroup.UserIDs, group.ID)
 	}
 
 	c.JSON(http.StatusOK, userGroup)

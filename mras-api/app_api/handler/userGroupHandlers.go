@@ -63,6 +63,31 @@ func (env *Env) CreateUserGroup(c *gin.Context) {
 		return
 	}
 
+	if reqUserGroup.Perms.SpeakerIDs != nil {
+		result := env.db.Find(&reqUserGroup.Perms.Speakers, reqUserGroup.Perms.SpeakerIDs)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+	}
+	if reqUserGroup.Perms.SpeakerGroupIDs != nil {
+		result := env.db.Find(&reqUserGroup.Perms.SpeakerGroups, reqUserGroup.Perms.SpeakerGroupIDs)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+	}
+	if reqUserGroup.Perms.RoomIDs != nil {
+		result := env.db.Find(&reqUserGroup.Perms.Rooms, reqUserGroup.Perms.RoomIDs)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+	}
+
 	result := env.db.Save(&reqUserGroup.Perms)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
@@ -70,7 +95,16 @@ func (env *Env) CreateUserGroup(c *gin.Context) {
 		return
 	}
 
-	newUserGroup := mysql.UserGroup{Name: reqUserGroup.Name, PermID: reqUserGroup.Perms.ID, UserIDs: reqUserGroup.UserIds}
+	newUserGroup := mysql.UserGroup{Name: reqUserGroup.Name, PermID: reqUserGroup.Perms.ID, Permissions: reqUserGroup.Perms, UserIDs: reqUserGroup.UserIds}
+
+	if reqUserGroup.UserIds != nil {
+		result = env.db.Find(&newUserGroup.Users, reqUserGroup.UserIds)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+	}
 
 	result = env.db.Save(&newUserGroup)
 	if result.Error != nil {

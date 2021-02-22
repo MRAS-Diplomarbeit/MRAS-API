@@ -49,13 +49,9 @@ func (env *Env) GetLog(c *gin.Context) {
 	fileScanner := bufio.NewScanner(file)
 	fileScanner.Split(bufio.ScanLines)
 
-	Log.Debug(linecount)
-	Log.Debug(count)
-
 	var fileTextLines []string
 
 	pos := linecount - count
-	Log.Debug(pos)
 
 	var n int
 	for fileScanner.Scan() {

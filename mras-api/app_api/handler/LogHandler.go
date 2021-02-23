@@ -61,8 +61,6 @@ func (env *Env) GetLog(c *gin.Context) {
 		}
 	}
 
-	Log.Debug(n)
-
 	c.JSON(http.StatusOK, fileTextLines)
 }
 

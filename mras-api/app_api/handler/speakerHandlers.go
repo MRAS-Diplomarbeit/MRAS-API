@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/mras-diplomarbeit/mras-api/core/config"
@@ -27,16 +28,16 @@ func (env *Env) GetAllSpeakers(c *gin.Context) {
 
 	//Get all Speakers from Database
 	result := env.db.Where("(speakers.id in (select speaker_id from perm_speakers where permissions_id ="+
-		"(select perm_id from users where users.id = ?)) or "+
+		"(select perm_id from users where users.id = @userid)) or "+
 		"speakers.id = any (select speaker_id from perm_speakers where permissions_id = any"+
 		"(select perm_id from user_groups where user_groups.id = any"+
-		"(select user_group_id from user_usergroups where user_id = ?))) or"+
+		"(select user_group_id from user_usergroups where user_id = @userid))) or"+
 		"(select admin from permissions where id = "+
-		"(select perm_id from users where users.id = ?)) = true or"+
+		"(select perm_id from users where users.id = @userid)) = true or"+
 		"(select admin from permissions where permissions.id = any"+
 		"(select perm_id from user_groups where user_groups.id = any"+
-		"(select user_group_id from user_usergroups where user_id = ?))) = true)"+
-		"and speakers.alive = true", userid, userid, userid, userid).Find(&speakers)
+		"(select user_group_id from user_usergroups where user_id = @userid))) = true)"+
+		"and speakers.alive = true", sql.Named("userid",userid)).Find(&speakers)
 
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
@@ -84,12 +85,12 @@ func (env *Env) UpdateSpeaker(c *gin.Context) {
 
 	var rights int64
 
-	result := env.db.Model(&mysql.Speaker{}).Where("((speakers.id in (select speaker_id from perm_speakers where permissions_id = (select perm_id from users where users.id = ?))) "+
-		"or (speakers.id in (select speaker_id from perm_speakers where permissions_id = any (select perm_id from user_groups where user_groups.id = any (select user_group_id from user_usergroups where user_id = ?)))) "+
-		"or ((select admin from permissions where id = (select perm_id from users where users.id = ?)) = true) "+
-		"or ((select admin from permissions where permissions.id = any (select perm_id from user_groups where user_groups.id = any (select user_group_id from user_usergroups where user_id = ?))) = true)) "+
-		"and speakers.id = ?",
-		reqUserId, reqUserId, reqUserId, reqUserId, updtSpeaker.ID.Int64).Count(&rights)
+	result := env.db.Model(&mysql.Speaker{}).Where("((speakers.id in (select speaker_id from perm_speakers where permissions_id = (select perm_id from users where users.id = @userid))) "+
+		"or (speakers.id in (select speaker_id from perm_speakers where permissions_id = any (select perm_id from user_groups where user_groups.id = any (select user_group_id from user_usergroups where user_id = @userid)))) "+
+		"or ((select admin from permissions where id = (select perm_id from users where users.id = @userid)) = true) "+
+		"or ((select admin from permissions where permissions.id = any (select perm_id from user_groups where user_groups.id = any (select user_group_id from user_usergroups where user_id = @userid))) = true)) "+
+		"and speakers.id = @speakerid",
+		sql.Named("userid", reqUserId), sql.Named("speakerid",updtSpeaker.ID.Int64)).Count(&rights)
 
 	if rights == 0 {
 		Log.WithField("module", "sql").WithError(result.Error)
@@ -282,7 +283,7 @@ func (env *Env) StopPlaybackSpeaker(c *gin.Context) {
 
 	var session mysql.Sessions
 
-	result := env.db.Model(&session).Where("speaker_id = ? or id = (select sessions_id from session_speakers where session_speakers.speaker_id = ?)", speakerid, speakerid).Find(&session)
+	result := env.db.Model(&session).Where("speaker_id = @speakerid or id = (select sessions_id from session_speakers where session_speakers.speaker_id = @speakerid)", sql.Named("speakerid",speakerid)).Find(&session)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)

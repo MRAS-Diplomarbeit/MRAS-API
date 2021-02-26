@@ -721,6 +721,7 @@ func (env *Env) LogoutUser(c *gin.Context) {
 }
 
 func (env *Env) UpdatePassword(c *gin.Context) {
+
 	type newUserPasswordRequest struct {
 		Password string `json:"password"`
 	}
@@ -742,27 +743,18 @@ func (env *Env) UpdatePassword(c *gin.Context) {
 	}
 
 	var user mysql.User
-	user.Username = c.Param("username")
+	user.ID = int32(c.GetInt("userid"))
 
-	var exists int64
-
-	//Check if Username exists in Database
-	result := env.db.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+	result := env.db.Find(&user)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
-	if exists == 0 {
-		Log.WithField("module", "sql").Error("Username not Found in Database")
-		c.AbortWithStatusJSON(http.StatusNotFound, errs.AUTH006)
-		return
-	}
-
 	//Save new Password to Database
 	user.Password = request.Password
-	user.PasswordReset = false
+
 	result = env.db.Save(&user)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)

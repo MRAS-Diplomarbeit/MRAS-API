@@ -37,7 +37,7 @@ func SetupApiRouter() *gin.Engine {
 	authRouter.GET("/user/:id/permissions", env.GetUserPermissions)
 	authRouter.PATCH("/user/:id/permissions", env.UpdateUserPermissions)
 
-	authRouter.PATCH("/user/password/new/:username", env.UpdatePassword)
+	authRouter.PATCH("/user/:id/password", env.UpdatePassword)
 
 	authRouter.GET("/group/user", env.GetAllUserGroups)
 	authRouter.POST("/group/user", env.CreateUserGroup)

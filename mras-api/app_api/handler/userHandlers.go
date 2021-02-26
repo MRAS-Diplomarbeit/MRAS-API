@@ -719,3 +719,54 @@ func (env *Env) LogoutUser(c *gin.Context) {
 		return
 	}
 }
+
+func (env *Env) UpdatePassword(c *gin.Context) {
+	type newUserPasswordRequest struct {
+		Password string `json:"password"`
+	}
+
+	//decode request body
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var request newUserPasswordRequest
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var user mysql.User
+	user.Username = c.Param("username")
+
+	var exists int64
+
+	//Check if Username exists in Database
+	result := env.db.Model(&user).Where("upper(username) = upper(?)", user.Username).Count(&exists)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	if exists == 0 {
+		Log.WithField("module", "sql").Error("Username not Found in Database")
+		c.AbortWithStatusJSON(http.StatusNotFound, errs.AUTH006)
+		return
+	}
+
+	//Save new Password to Database
+	user.Password = request.Password
+	user.PasswordReset = false
+	result = env.db.Save(&user)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ005)
+		return
+	}
+}

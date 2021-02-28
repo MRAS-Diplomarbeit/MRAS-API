@@ -12,7 +12,7 @@ import (
 
 func (env *Env) LogMessage(c *gin.Context) {
 
-	if Log.GetLevel() == logrus.DebugLevel {
+	if Log.GetLevel() != logrus.DebugLevel {
 		return
 	}
 

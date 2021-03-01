@@ -61,6 +61,13 @@ func (env *Env) GetLog(c *gin.Context) {
 		}
 	}
 
+	err = file.Close()
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, err)
+		return
+	}
+
 	c.JSON(http.StatusOK, fileTextLines)
 }
 

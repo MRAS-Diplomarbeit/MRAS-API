@@ -24,7 +24,7 @@ func SetupApiRouter() *gin.Engine {
 	noAuthRouter.POST("/user/refresh", env.GenerateAccessToken)
 	noAuthRouter.POST("/user/password/reset/:username", env.ResetUserPassword)
 	noAuthRouter.POST("/user/password/new/:username", env.NewUserPassword)
-	noAuthRouter.GET("/log/:lines", env.GetLog)
+	//noAuthRouter.GET("/log/:lines", env.GetLog)
 
 	authRouter := router.Group("/api/v1")
 	authRouter.Use(middleware.AuthMiddleware())
@@ -36,6 +36,8 @@ func SetupApiRouter() *gin.Engine {
 
 	authRouter.GET("/user/:id/permissions", env.GetUserPermissions)
 	authRouter.PATCH("/user/:id/permissions", env.UpdateUserPermissions)
+
+	authRouter.PATCH("/user/:id/password", env.UpdatePassword)
 
 	authRouter.GET("/group/user", env.GetAllUserGroups)
 	authRouter.POST("/group/user", env.CreateUserGroup)

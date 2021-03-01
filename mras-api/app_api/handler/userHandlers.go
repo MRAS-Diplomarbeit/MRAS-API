@@ -719,3 +719,46 @@ func (env *Env) LogoutUser(c *gin.Context) {
 		return
 	}
 }
+
+func (env *Env) UpdatePassword(c *gin.Context) {
+
+	type newUserPasswordRequest struct {
+		Password string `json:"password"`
+	}
+
+	//decode request body
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var request newUserPasswordRequest
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var user mysql.User
+	user.ID = int32(c.GetInt("userid"))
+
+	result := env.db.Find(&user)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	//Save new Password to Database
+	user.Password = request.Password
+
+	result = env.db.Save(&user)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ005)
+		return
+	}
+}

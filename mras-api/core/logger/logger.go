@@ -55,7 +55,7 @@ func InitLogger() {
 	Log.AddHook(lfshook.NewHook(
 		&lumberjack.Logger{
 			Filename:   config.LogLocation,
-			MaxSize:    50,   // megabytes
+			MaxSize:    5,    // megabytes
 			MaxBackups: 28,   //days
 			Compress:   true, // disabled by default
 		},

@@ -4,16 +4,15 @@ go 1.15
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/fallais/logrus-lumberjack-hook v0.0.0-20171206101343-8d59f34a5961
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/go-redis/redis/v8 v8.4.2
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
+	github.com/markbates/pkger v0.17.1
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sirupsen/logrus v1.7.0
-	github.com/snowzach/rotatefilehook v0.0.0-20180327172521-2f64f265f58c
 	github.com/spf13/viper v1.7.1
 	github.com/tjarratt/babble v0.0.0-20191209142150-eecdf8c2339d
 	github.com/ugorji/go v1.2.2 // indirect

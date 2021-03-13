@@ -1,0 +1,1 @@
+create event alivecheck on schedule every 30 SECOND on completion preserve enable do CALL checkifalive();

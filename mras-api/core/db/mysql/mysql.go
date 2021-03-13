@@ -1,11 +1,14 @@
 package mysql
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/markbates/pkger"
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"io"
 	"time"
 )
 
@@ -38,8 +41,42 @@ func (service *SqlServices) InitializeModel() (*SqlServices, error) {
 
 	service.Con.Exec("drop procedure if exists checkifalive")
 	service.Con.Exec("drop event if exists alivecheck")
-	service.Con.Exec(procedure)
-	service.Con.Exec("create event alivecheck on schedule every 30 SECOND on completion preserve  enable  do CALL checkifalive();")
+
+	procedureCheckIfAlive, err := readScript("procedure_checkifalive.sql")
+	if err != nil {
+		Log.Fatal(err)
+	}
+	service.Con.Exec(procedureCheckIfAlive)
+
+	eventAliveCheck, err := readScript("event_alivecheck.sql")
+	if err != nil {
+		Log.Fatal(err)
+	}
+	service.Con.Exec(eventAliveCheck)
+
+	viewUserUserGroupsPerms, err := readScript("view_user_usergroups_perms.sql")
+	if err != nil {
+		Log.Fatal(err)
+	}
+	service.Con.Exec(viewUserUserGroupsPerms)
+
+	viewRoomUserPerms, err := readScript("view_room_user_perms.sql")
+	if err != nil {
+		Log.Fatal(err)
+	}
+	service.Con.Exec(viewRoomUserPerms)
+
+	viewSpeakerUserPerms, err := readScript("view_speaker_user_perms.sql")
+	if err != nil {
+		Log.Fatal(err)
+	}
+	service.Con.Exec(viewSpeakerUserPerms)
+
+	viewSpeakerGroupUserPerms, err := readScript("view_speakergroup_user_perms.sql")
+	if err != nil {
+		Log.Fatal(err)
+	}
+	service.Con.Exec(viewSpeakerGroupUserPerms)
 
 	endTime := time.Now()
 	duration := endTime.Sub(startTime)
@@ -64,4 +101,22 @@ func (service *SqlServices) Connect(conf map[string]interface{}) *SqlServices {
 	}
 	service.Con = db
 	return service
+}
+
+func readScript(filename string) (string, error) {
+	f, err := pkger.Open("/static/" + filename)
+	if err != nil {
+		return "", err
+	}
+
+	defer f.Close()
+
+	buf := bytes.NewBuffer(nil)
+
+	_, err = io.Copy(buf, f)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }

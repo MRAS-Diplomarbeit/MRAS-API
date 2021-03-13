@@ -23,16 +23,7 @@ func (env *Env) GetAllRooms(c *gin.Context) {
 	userid, _ := c.Get("userid")
 
 	//Get all Rooms from Database
-	result := env.db.Where("(rooms.id in (select room_id from perm_rooms where permissions_id ="+
-		"(select perm_id from users where users.id = @userid)) or "+
-		"rooms.id = any (select room_id from perm_rooms where permissions_id = any"+
-		"(select perm_id from user_groups where user_groups.id = any"+
-		"(select user_group_id from user_usergroups where user_id = @userid))) or"+
-		"(select admin from permissions where id = "+
-		"(select perm_id from users where users.id = @userid)) = true or"+
-		"(select admin from permissions where permissions.id = any"+
-		"(select perm_id from user_groups where user_groups.id = any"+
-		"(select user_group_id from user_usergroups where user_id = @userid))) = true)",
+	result := env.db.Where("rooms.id in (select room_id from room_user_perms where user_id = @userid)",
 		sql.Named("userid", userid)).Find(&rooms)
 
 	if result.Error != nil {

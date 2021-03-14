@@ -62,7 +62,7 @@ type Position struct {
 type SpeakerGroup struct {
 	ID         int32      `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
 	Name       string     `gorm:"not null;size:100" json:"name"`
-	Speaker    []*Speaker `gorm:"many2many:speakergroup_speakers; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	Speaker    []*Speaker `gorm:"many2many:speakergroup_speakers; constraints:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	SpeakerIds []int32    `gorm:"-" json:"speaker_ids"`
 }
 
@@ -82,10 +82,10 @@ type Dimensions struct {
 type Sessions struct {
 	ID          int32      `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
 	SpeakerID   int32      `json:"speaker_id"`
-	Speaker     Speaker    `gorm:"foreignKey:SpeakerID" json:"-"`
+	Speaker     Speaker    `gorm:"foreignKey:SpeakerID; constraints:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	DisplayName string     `json:"displayname"`
 	Method      string     `json:"method"`
-	Speakers    []*Speaker `gorm:"many2many:session_speakers; constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	Speakers    []*Speaker `gorm:"many2many:session_speakers; constraints:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	SpeakerIPs  []string   `gorm:"-" json:"ips"`
 	CreatedAt   time.Time
 }

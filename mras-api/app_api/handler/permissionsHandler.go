@@ -127,7 +127,7 @@ func (env *Env) UpdateUserPermissions(c *gin.Context) {
 		result := env.db.Model(&mysql.Permissions{}).Where("(permissions.id = (select perm_id from users where users.id = ?) "+
 			"or permissions.id in (select perm_id from user_groups where user_groups.id "+
 			"in (select user_group_id from user_usergroups where user_id = ?))) "+
-			"and admin", request.UserID).Count(&rights)
+			"and admin == true", request.UserID).Count(&rights)
 		if result.Error != nil {
 			Log.WithField("module", "sql").WithError(result.Error)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)

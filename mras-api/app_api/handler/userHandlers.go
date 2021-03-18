@@ -239,8 +239,6 @@ func (env *Env) RegisterUser(c *gin.Context) {
 	user.UserGroups = append(user.UserGroups, &defaultGroup)
 	user.ResetCode = utils.GenerateCode()
 
-	Log.WithField("model", "handler").Debug(user)
-
 	//Save new user to users database
 	result = env.db.Save(&user)
 	if result.Error != nil {
@@ -743,7 +741,9 @@ func (env *Env) UpdatePassword(c *gin.Context) {
 	}
 
 	var user mysql.User
-	user.ID = int32(c.GetInt("userid"))
+	tmp, _ := c.Get("userid")
+	user.ID = tmp.(int32)
+	Log.Debug(user.ID)
 
 	result := env.db.Find(&user)
 	if result.Error != nil {

@@ -20,6 +20,7 @@ func DispatchRequest(url string, contentType string, method string, reqBody inte
 	Log.WithField("module", "requestDispatch").Debug(string(reqBodyJson))
 
 	var resp *http.Response
+	client := &http.Client{}
 
 	if strings.ToUpper(method) == "POST" {
 		resp, err = http.Post(url, contentType, bytes.NewBuffer(reqBodyJson))
@@ -27,7 +28,9 @@ func DispatchRequest(url string, contentType string, method string, reqBody inte
 			return nil, err
 		}
 	} else if strings.ToUpper(method) == "DELETE" {
-		resp, err = http.Post(url, contentType, bytes.NewBuffer(reqBodyJson))
+		req, err := http.NewRequest("DELETE", url, bytes.NewBuffer(reqBodyJson))
+		req.Header.Add("Content-Type", contentType)
+		resp, err = client.Do(req)
 		if err != nil {
 			return nil, err
 		}

@@ -14,6 +14,8 @@ func SetupApiRouter() *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(coremiddleware.LoggerMiddleware("app"))
 
+	router.Use(middleware.CORSMiddleware())
+
 	noAuthRouter := router.Group("/api/v1")
 
 	env := &handler.Env{}
@@ -63,9 +65,11 @@ func SetupApiRouter() *gin.Engine {
 	authRouter.GET("/group/speaker", env.GetAllSpeakerGroups)
 	authRouter.POST("/group/speaker", env.CreateSpeakerGroup)
 	authRouter.GET("/group/speaker/:id", env.GetSpeakerGroup)
-	authRouter.POST("/group/speaker/:id", env.EnablePlaybackSpeakerGroup)
 	authRouter.PATCH("/group/speaker/:id", env.UpdateSpeakerGroup)
 	authRouter.DELETE("/group/speaker/:id", env.DeleteSpeakerGroup)
+
+	authRouter.POST("/group/speaker/:id/playback", env.EnablePlaybackSpeakerGroup)
+	authRouter.DELETE("/group/speaker/:id/playback", env.StopPlaybackSpeakerGroup)
 
 	return router
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/mras-diplomarbeit/mras-api/core/utils"
 	"gopkg.in/guregu/null.v4"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -153,6 +154,7 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 		Method      string   `json:"method"`
 		DisplayName string   `json:"displayname"`
 		DeviceIPs   []string `json:"device_ips"`
+		MulticastIP string   `json:"multicast_ip"`
 	}
 
 	type playbackClientRes struct {
@@ -196,7 +198,7 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 		return
 	}
 
-	clientreq := playbackClientReq{Method: request.Method, DisplayName: request.DisplayName, DeviceIPs: []string{}}
+	clientreq := playbackClientReq{Method: request.Method, DisplayName: request.DisplayName, DeviceIPs: []string{}, MulticastIP: ""}
 
 	res, err := utils.DispatchRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "POST", clientreq)
 	if err != nil {
@@ -213,6 +215,7 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 		session.Speaker = speaker
 		session.DisplayName = request.DisplayName
 		session.Method = request.Method
+		session.Speakers = append(session.Speakers, &speaker)
 
 		result = env.db.Save(&session)
 		if result.Error != nil {
@@ -269,23 +272,9 @@ func (env *Env) StopPlaybackSpeaker(c *gin.Context) {
 
 	var session mysql.Sessions
 
-	result := env.db.Model(&session).Where("speaker_id = @speakerid or id = (select sessions_id from session_speakers where session_speakers.speaker_id = @speakerid)", sql.Named("speakerid", speakerid)).Find(&session)
+	result := env.db.Model(&session).Where("speaker_id = @speakerid or id = (select sessions_id from session_speakers where session_speakers.speaker_id = @speakerid)", sql.Named("speakerid", speakerid)).Preload(clause.Associations).Find(&session)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
-		return
-	}
-
-	err = env.db.Model(&mysql.Speaker{}).Association("Speakers").Find(&session.Speaker)
-	if err != nil {
-		Log.WithField("module", "sql").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
-		return
-	}
-
-	err = env.db.Model(&mysql.Speaker{}).Association("Speakers").Find(&session.Speakers)
-	if err != nil {
-		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
@@ -304,7 +293,24 @@ func (env *Env) StopPlaybackSpeaker(c *gin.Context) {
 	}
 	defer res.Body.Close()
 
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	Log.Debug(jsonData)
+
 	if res.StatusCode == 200 {
+
+		err = env.db.Model(&session).Association("Speakers").Clear()
+		if err != nil {
+			Log.WithField("module", "sql").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+
 		result = env.db.Delete(&session)
 		if result.Error != nil {
 			Log.WithField("module", "sql").WithError(result.Error)

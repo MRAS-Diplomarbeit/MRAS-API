@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/mras-diplomarbeit/mras-api/core/config"
 	"github.com/mras-diplomarbeit/mras-api/core/db/mysql"
 	errs "github.com/mras-diplomarbeit/mras-api/core/error"
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
+	"github.com/mras-diplomarbeit/mras-api/core/utils"
 	"gopkg.in/guregu/null.v4"
 	"gorm.io/gorm/clause"
 	"io/ioutil"
@@ -198,5 +200,179 @@ func (env *Env) DeleteSpeakerGroup(c *gin.Context) {
 }
 
 func (env *Env) EnablePlaybackSpeakerGroup(c *gin.Context) {
+
+	type playbackClientReq struct {
+		Method      string   `json:"method"`
+		DisplayName string   `json:"displayname"`
+		DeviceIPs   []string `json:"device_ips"`
+		MulticastIP string   `json:"multicast_ip"`
+	}
+
+	type playbackClientRes struct {
+		Code    int      `json:"code"`
+		Message string   `json:"message"`
+		DeadIps []string `json:"dead_ips"`
+	}
+
+	type playbackReq struct {
+		DisplayName string `json:"displayname"`
+		Method      string `json:"method"`
+	}
+
+	//decode request body
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var request playbackReq
+	err = json.Unmarshal(jsonData, &request)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var speakerGroup mysql.SpeakerGroup
+	result := env.db.Where("id = ?", c.Param("id")).Preload(clause.Associations).First(&speakerGroup)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	var clientReq playbackClientReq
+
+	clientReq.Method = request.Method
+	clientReq.DisplayName = request.DisplayName
+	clientReq.MulticastIP = utils.GenerateMulticastIP()
+
+	for _, speaker := range speakerGroup.Speaker {
+		if speaker.Alive {
+			clientReq.DeviceIPs = append(clientReq.DeviceIPs, speaker.IPAddress)
+		}
+	}
+
+	res, err := utils.DispatchRequest("http://"+clientReq.DeviceIPs[0]+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "POST", clientReq)
+	if err != nil {
+		Log.WithField("module", "client").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == 200 {
+
+		var session mysql.Sessions
+
+		session.Speaker = *speakerGroup.Speaker[0]
+		session.DisplayName = request.DisplayName
+		session.Method = request.Method
+		session.MulticastIP = clientReq.MulticastIP
+		session.Speakers = speakerGroup.Speaker
+
+		result = env.db.Save(&session)
+		if result.Error != nil {
+
+			type stopPlayback struct {
+				IPs []string `json:"ips"`
+			}
+
+			res2, err := utils.DispatchRequest("http://"+clientReq.DeviceIPs[0]+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "DELETE", stopPlayback{})
+			if err != nil {
+				Log.WithField("module", "client").WithError(err)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
+				return
+			}
+
+			_ = res2.Body.Close()
+		} else {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, errs.CLIE003)
+	}
+
+	var response playbackClientRes
+	_ = json.NewDecoder(res.Body).Decode(&response)
+	Log.WithField("module", "handler").Debug(response)
+
+	if res.StatusCode == 404 {
+		for _, ip := range response.DeadIps {
+			result = env.db.Model(&mysql.Speaker{}).Where("ip_address = ?", ip).Update("alive", false)
+			if result.Error != nil {
+				Log.WithField("module", "sql").WithError(result.Error)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+				return
+			}
+		}
+	}
+	c.JSON(res.StatusCode, errs.Error{Code: strconv.Itoa(response.Code), Message: response.Message})
+}
+
+func (env *Env) StopPlaybackSpeakerGroup(c *gin.Context) {
+
+	type stopPlaybackReq struct {
+		IPs []string `json:"ips"`
+	}
+
+	var speakerGroup mysql.SpeakerGroup
+	result := env.db.Where("id = ?", c.Param("id")).Preload(clause.Associations).First(&speakerGroup)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	var session mysql.Sessions
+
+	result = env.db.Model(&session).Where("speaker_id = @speakerid or id = (select sessions_id from session_speakers where session_speakers.speaker_id = @speakerid)", sql.Named("speakerid", speakerGroup.Speaker[1].ID)).Preload(clause.Associations).Find(&session)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	for _, speaker := range session.Speakers {
+		session.SpeakerIPs = append(session.SpeakerIPs, speaker.IPAddress)
+	}
+	Log.Debug(session.Speakers)
+
+	stopPlaybackReqBody := stopPlaybackReq{session.SpeakerIPs}
+
+	res, err := utils.DispatchRequest("http://"+session.Speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "DELETE", stopPlaybackReqBody)
+	if err != nil {
+		Log.WithField("module", "client").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
+		return
+	}
+	defer res.Body.Close()
+
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	Log.Debug(jsonData)
+
+	if res.StatusCode == 200 {
+
+		err = env.db.Model(&session).Association("Speakers").Clear()
+		if err != nil {
+			Log.WithField("module", "sql").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+
+		result = env.db.Delete(&session)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+	}
 
 }

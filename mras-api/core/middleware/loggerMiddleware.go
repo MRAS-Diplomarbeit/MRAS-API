@@ -21,6 +21,7 @@ func LoggerMiddleware(router string) gin.HandlerFunc {
 		reqUri := c.Request.RequestURI
 		statusCode := c.Writer.Status()
 		clientIP := c.ClientIP()
+
 		//"| %3d | %13v | %15s | %s | %s |"
 
 		if latencyTime < time.Second && statusCode == 200 {
@@ -47,8 +48,6 @@ func LoggerMiddleware(router string) gin.HandlerFunc {
 				reqMethod,
 				reqUri,
 			)
-
 		}
-
 	}
 }

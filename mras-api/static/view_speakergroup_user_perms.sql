@@ -12,5 +12,6 @@ from users
     or (select admin
         from permissions
         where permissions.id = any
-              (select perm_id from user_usergroups_perms where user_id = users.id) = true))
+              (select perm_id from user_usergroups_perms where user_id = users.id)
+          and admin = true))
 group by speakergoup_id, user_id;

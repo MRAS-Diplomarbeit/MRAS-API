@@ -1,160 +1,291 @@
-drop
-    database if exists mras;
-SET
-    GLOBAL event_scheduler = ON;
-create
-    database mras;
-use mras;
-
 create table permissions
 (
-    id      INT NOT NULL UNIQUE AUTO_INCREMENT,
-    admin   BOOL DEFAULT FALSE,
-    canedit BOOL DEFAULT FALSE,
-
+	id int auto_increment,
+	admin tinyint(1) default 0 not null,
+	can_edit tinyint(1) default 0 not null,
+	constraint id
+		unique (id)
 );
 
-create table user
+alter table permissions
+	add primary key (id);
+
+create table rooms
 (
-    id            INT         NOT NULL UNIQUE AUTO_INCREMENT,
-    username      VARCHAR(50) NOT NULL UNIQUE,
-    password      VARCHAR(64) NOT NULL,
-    created_ad    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    avatar_id     VARCHAR(100),
-    perm_id       INT         NOT NULL,
-    refresh_token TEXT,
-    reset_code    TEXT        NOT NULL,
-    FOREIGN KEY (perm_id) REFERENCES permissions (id),
-    primary key (id)
+	id int auto_increment,
+	name varchar(100) not null,
+	description longtext null,
+	dim_height double null,
+	dim_width double null,
+	created_at datetime(3) null,
+	height double null,
+	width double null,
+	constraint id
+		unique (id)
 );
 
-create table usergroup
+alter table rooms
+	add primary key (id);
+
+create table perm_rooms
 (
-    id      INT          NOT NULL UNIQUE AUTO_INCREMENT,
-    name    VARCHAR(100) NOT NULL,
-    perm_id INT          NOT NULL,
-    FOREIGN KEY (perm_id) REFERENCES permissions (id),
-    PRIMARY KEY (id)
+	permissions_id int not null,
+	room_id int not null,
+	primary key (permissions_id, room_id),
+	constraint fk_perm_rooms_permissions
+		foreign key (permissions_id) references permissions (id)
+			on update cascade on delete cascade,
+	constraint fk_perm_rooms_room
+		foreign key (room_id) references rooms (id)
+			on update cascade on delete cascade
 );
 
-create table room
+create table speaker_groups
 (
-    id          INT          NOT NULL UNIQUE AUTO_INCREMENT,
-    name        VARCHAR(100) NOT NULL,
-    description TEXT,
-    dim_height  NUMERIC,
-    dim_width   NUMERIC,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    primary key (id)
+	id int auto_increment,
+	name varchar(100) not null,
+	constraint id
+		unique (id)
 );
 
-create table speaker
+alter table speaker_groups
+	add primary key (id);
+
+create table perm_speakergroups
 (
-    id            INT          NOT NULL UNIQUE AUTO_INCREMENT,
-    name          VARCHAR(100) NOT NULL,
-    description   TEXT,
-    pos_x         NUMERIC,
-    pos_y         NUMERIC,
-    room_id       INT          NOT NULL,
-    ip_address    VARCHAR(15)  NOT NULL,
-    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_lifesign TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    alive         BOOL      DEFAULT TRUE,
-    FOREIGN KEY (room_id) REFERENCES room (id),
-    primary key (id)
+	permissions_id int not null,
+	speaker_group_id int not null,
+	primary key (permissions_id, speaker_group_id),
+	constraint fk_perm_speakergroups_permissions
+		foreign key (permissions_id) references permissions (id)
+			on update cascade on delete cascade,
+	constraint fk_perm_speakergroups_speaker_group
+		foreign key (speaker_group_id) references speaker_groups (id)
+			on update cascade on delete cascade
 );
 
-create table speakergroup
+create table speakers
 (
-    id   INT          NOT NULL UNIQUE AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    primary key (id)
+	id int auto_increment,
+	name varchar(100) null,
+	description longtext null,
+	pos_x double null,
+	pos_y double null,
+	room_id int null,
+	ip_address longtext null,
+	created_at datetime(3) null,
+	last_lifesign datetime(3) null,
+	alive tinyint(1) default 1 not null,
+	constraint id
+		unique (id)
 );
 
-create table speakergroupspeakers
+alter table speakers
+	add primary key (id);
+
+create table perm_speakers
 (
-    speakergroup_id INT NOT NULL,
-    speaker_id      INT NOT NULL,
-    foreign key (speakergroup_id) references speakergroup (id),
-    foreign key (speaker_id) references speaker (id)
+	permissions_id int not null,
+	speaker_id int not null,
+	primary key (permissions_id, speaker_id),
+	constraint fk_perm_speakers_permissions
+		foreign key (permissions_id) references permissions (id)
+			on update cascade on delete cascade,
+	constraint fk_perm_speakers_speaker
+		foreign key (speaker_id) references speakers (id)
+			on update cascade on delete cascade
 );
 
-
-
-create table permrooms
+create table sessions
 (
-    perm_id INT NOT NULL,
-    room_id INT NOT NULL,
-    foreign key (perm_id) references permissions (id),
-    foreign key (room_id) references room (id)
+	id int auto_increment,
+	speaker_id int null,
+	display_name longtext null,
+	method longtext null,
+	created_at datetime(3) null,
+	constraint id
+		unique (id),
+	constraint fk_sessions_speaker
+		foreign key (speaker_id) references speakers (id)
 );
 
-create table permspeakers
+alter table sessions
+	add primary key (id);
+
+create table session_speakers
 (
-    perm_id    INT NOT NULL,
-    speaker_id INT NOT NULL,
-    foreign key (perm_id) references permissions (id),
-    foreign key (speaker_id) references speaker (id)
+	sessions_id int not null,
+	speaker_id int not null,
+	primary key (sessions_id, speaker_id),
+	constraint fk_session_speakers_sessions
+		foreign key (sessions_id) references sessions (id)
+			on update cascade on delete cascade,
+	constraint fk_session_speakers_speaker
+		foreign key (speaker_id) references speakers (id)
+			on update cascade on delete cascade
 );
 
-create table permspeakergroups
+create table speakergroup_speakers
 (
-    perm_id         INT NOT NULL,
-    speakergroup_id INT NOT NULL,
-    foreign key (perm_id) references permissions (id),
-    foreign key (speakergroup_id) references speakergroup (id)
+	speaker_group_id int not null,
+	speaker_id int not null,
+	primary key (speaker_group_id, speaker_id),
+	constraint fk_speakergroup_speakers_speaker
+		foreign key (speaker_id) references speakers (id)
+			on update cascade on delete cascade,
+	constraint fk_speakergroup_speakers_speaker_group
+		foreign key (speaker_group_id) references speaker_groups (id)
+			on update cascade on delete cascade
 );
 
-drop procedure if exists checkifalive;
+create table user_groups
+(
+	id int auto_increment,
+	name varchar(100) null,
+	perm_id int null,
+	constraint id
+		unique (id),
+	constraint fk_user_groups_permissions
+		foreign key (perm_id) references permissions (id)
+);
+
+alter table user_groups
+	add primary key (id);
+
+create table users
+(
+	id int auto_increment,
+	username varchar(15) null,
+	password varchar(64) null,
+	created_at datetime(3) null,
+	avatar_id varchar(10) default 'default' null,
+	perm_id int null,
+	refresh_token longtext null,
+	reset_code longtext null,
+	password_reset tinyint(1) default 0 null,
+	constraint id
+		unique (id),
+	constraint username
+		unique (username),
+	constraint fk_users_permissions
+		foreign key (perm_id) references permissions (id)
+);
+
+alter table users
+	add primary key (id);
+
+create table user_usergroups
+(
+	user_group_id int not null,
+	user_id int not null,
+	primary key (user_group_id, user_id),
+	constraint fk_user_usergroups_user
+		foreign key (user_id) references users (id)
+			on update cascade on delete cascade,
+	constraint fk_user_usergroups_user_group
+		foreign key (user_group_id) references user_groups (id)
+			on update cascade on delete cascade
+);
+
+create view room_user_perms as
+	select `mras`.`rooms`.`id` AS `room_id`, `mras`.`users`.`id` AS `user_id`
+from (`mras`.`users`
+         join `mras`.`rooms` on ((`mras`.`rooms`.`id` in (select `mras`.`perm_rooms`.`room_id`
+                                                          from `mras`.`perm_rooms`
+                                                          where ((`mras`.`perm_rooms`.`permissions_id` = `mras`.`users`.`perm_id`) or
+                                                                 `mras`.`perm_rooms`.`permissions_id` in
+                                                                 (select `mras`.`user_usergroups_perms`.`perm_id`
+                                                                  from `mras`.`user_usergroups_perms`
+                                                                  where (`mras`.`user_usergroups_perms`.`user_id` = `mras`.`users`.`id`)))) or
+                                  (0 <> (select `mras`.`permissions`.`admin`
+                                         from `mras`.`permissions`
+                                         where ((`mras`.`permissions`.`id` = `mras`.`users`.`perm_id`) = true))) or
+                                  (0 <> (select `mras`.`permissions`.`admin`
+                                         from `mras`.`permissions`
+                                         where (`mras`.`permissions`.`id` in
+                                                (select `mras`.`user_usergroups_perms`.`perm_id`
+                                                 from `mras`.`user_usergroups_perms`
+                                                 where (`mras`.`user_usergroups_perms`.`user_id` = `mras`.`users`.`id`)) =
+                                                true))))))
+group by `room_id`, `user_id`;
+
+create view speaker_user_perms as
+	select `mras`.`speakers`.`id` AS `speaker_id`, `mras`.`users`.`id` AS `user_id`
+from (`mras`.`users`
+         join `mras`.`speakers` on ((`mras`.`speakers`.`id` in (select `mras`.`perm_speakers`.`speaker_id`
+                                                                from `mras`.`perm_speakers`
+                                                                where ((`mras`.`perm_speakers`.`permissions_id` = `mras`.`users`.`perm_id`) or
+                                                                       `mras`.`perm_speakers`.`permissions_id` in
+                                                                       (select `mras`.`user_usergroups_perms`.`perm_id`
+                                                                        from `mras`.`user_usergroups_perms`
+                                                                        where (`mras`.`user_usergroups_perms`.`user_id` = `mras`.`users`.`id`)))) or
+                                     (0 <> (select `mras`.`permissions`.`admin`
+                                            from `mras`.`permissions`
+                                            where ((`mras`.`permissions`.`id` = `mras`.`users`.`perm_id`) = true))) or
+                                     (0 <> (select `mras`.`permissions`.`admin`
+                                            from `mras`.`permissions`
+                                            where (`mras`.`permissions`.`id` in
+                                                   (select `mras`.`user_usergroups_perms`.`perm_id`
+                                                    from `mras`.`user_usergroups_perms`
+                                                    where (`mras`.`user_usergroups_perms`.`user_id` = `mras`.`users`.`id`)) =
+                                                   true))))))
+group by `speaker_id`, `user_id`;
+
+create view speakergroup_user_perms as
+	select `mras`.`speaker_groups`.`id` AS `speakergoup_id`, `mras`.`users`.`id` AS `user_id`
+from (`mras`.`users`
+         join `mras`.`speaker_groups`
+              on ((`mras`.`speaker_groups`.`id` in (select `mras`.`perm_speakergroups`.`speaker_group_id`
+                                                    from `mras`.`perm_speakergroups`
+                                                    where ((`mras`.`perm_speakergroups`.`permissions_id` =
+                                                            `mras`.`users`.`perm_id`) or
+                                                           `mras`.`perm_speakergroups`.`permissions_id` in
+                                                           (select `mras`.`user_usergroups_perms`.`perm_id`
+                                                            from `mras`.`user_usergroups_perms`
+                                                            where (`mras`.`user_usergroups_perms`.`user_id` = `mras`.`users`.`id`)))) or
+                   (0 <> (select `mras`.`permissions`.`admin`
+                          from `mras`.`permissions`
+                          where ((`mras`.`permissions`.`id` = `mras`.`users`.`perm_id`) = true))) or
+                   (0 <> (select `mras`.`permissions`.`admin`
+                          from `mras`.`permissions`
+                          where (`mras`.`permissions`.`id` in (select `mras`.`user_usergroups_perms`.`perm_id`
+                                                               from `mras`.`user_usergroups_perms`
+                                                               where (`mras`.`user_usergroups_perms`.`user_id` = `mras`.`users`.`id`)) and
+                                 (`mras`.`permissions`.`admin` = true)))))))
+group by `speakergoup_id`, `user_id`;
+
+create view user_usergroups_perms as
+	select `mras`.`users`.`id` AS `user_id`, `mras`.`user_groups`.`perm_id` AS `perm_id`
+from (`mras`.`users`
+         join `mras`.`user_groups` on (`mras`.`user_groups`.`id` in (select `mras`.`user_usergroups`.`user_group_id`
+                                                                     from `mras`.`user_usergroups`
+                                                                     where (`mras`.`user_usergroups`.`user_id` = `mras`.`users`.`id`))))
+group by `mras`.`users`.`id`, `mras`.`user_groups`.`perm_id`;
+
 create procedure checkifalive()
 begin
-    declare
-        speaker_id int;
-    declare
-        diff int;
-    declare
-        finished integer default 0;
-    declare
-        curId cursor for
-            SELECT id
-            from speaker;
-
-    declare
-        continue handler for not found set finished = 1;
-
+    declare speaker_id int; declare diff int; declare finished integer default 0;
+    declare curId cursor for SELECT id from speakers; declare continue handler for not found set finished = 1;
     open curId;
-
-    updAlive
-    :
+    updAlive:
     loop
         FETCH curId into speaker_id;
-        select TIMESTAMPDIFF(SQL_TSI_SECOND, (SELECT last_lifesign from speaker), CURRENT_TIMESTAMP)
+        select TIMESTAMPDIFF(SECOND, (SELECT last_lifesign from speakers where id = speaker_id), CURRENT_TIMESTAMP)
         into diff;
-        if
-            diff >= 30 then
-            update speaker
-            set alive = false
-            where id = speaker_id;
+        if diff >= 30 then
+            update speakers set alive = 0 where id = speaker_id;
         else
-            update speaker
-            set alive = true
-            where id = speaker_id;
+            update speakers set alive = 1 where id = speaker_id;
         end if;
-
-        if
-            finished = 1 then
-            LEAVE updAlive;
-        end if;
-    end loop
-        updAlive;
+        if finished = 1 then LEAVE updAlive; end if;
+    end loop updAlive;
     close curId;
 end;
 
-drop
-    event if exists alivecheck;
-create
-    event alivecheck
-    on schedule every 30 SECOND
-    on completion PRESERVE
-    do
-    CALL checkifalive();
+create event alivecheck on schedule
+	every '30' SECOND
+	starts '2021-03-18 13:44:05'
+	on completion preserve
+	enable
+	do
+	CALL checkifalive();

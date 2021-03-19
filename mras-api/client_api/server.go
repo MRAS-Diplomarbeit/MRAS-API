@@ -14,8 +14,7 @@ func SetupClientRouter() *gin.Engine {
 	env := &handler.Env{}
 	env.Initialize()
 
-	router.GET("/discover", env.DiscoverNew)
-	router.GET("/discover/:id", env.Lifesign)
+	router.GET("/discover", env.Discover)
 	router.POST("/log", env.LogMessage)
 
 	return router

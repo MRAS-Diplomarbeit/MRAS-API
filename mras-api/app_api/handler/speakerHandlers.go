@@ -76,7 +76,7 @@ func (env *Env) UpdateSpeaker(c *gin.Context) {
 
 	var rights int64
 
-	result := env.db.Model(&mysql.Speaker{}).Where("speakers.id = @speakerid and (speakers.id in (select speaker_id from speaker_user_perms where user_id = @userid)",
+	result := env.db.Model(&mysql.Speaker{}).Where("speakers.id = @speakerid and (speakers.id in (select speaker_id from speaker_user_perms where user_id = @userid))",
 		sql.Named("userid", reqUserId), sql.Named("speakerid", updtSpeaker.ID.Int64)).Count(&rights)
 
 	if rights == 0 {

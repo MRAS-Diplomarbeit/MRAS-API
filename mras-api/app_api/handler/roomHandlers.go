@@ -160,5 +160,33 @@ func (env *Env) DeleteRoom(c *gin.Context) {
 }
 
 func (env *Env) EnablePlaybackRoom(c *gin.Context) {
+	//
+	//type playbackReq struct {
+	//	DisplayName string `json:"displayname"`
+	//	Method      string `json:"method"`
+	//}
+	//
+	////decode request body
+	//jsonData, err := ioutil.ReadAll(c.Request.Body)
+	//if err != nil {
+	//	Log.WithField("module", "handler").WithError(err)
+	//	c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+	//	return
+	//}
+	//
+	//var request playbackReq
+	//err = json.Unmarshal(jsonData, &request)
+	//if err != nil {
+	//	Log.WithField("module", "handler").WithError(err)
+	//	c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+	//	return
+	//}
+	//
+	//var room mysql.Room
+	//var speaker
+
+}
+
+func (env *Env) StopPlaybackRoom(c *gin.Context) {
 
 }

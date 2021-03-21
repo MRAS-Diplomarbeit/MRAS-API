@@ -52,6 +52,7 @@ type Speaker struct {
 	LastLifesign time.Time       `json:"-"`
 	Alive        bool            `gorm:"default:true;not null" json:"-"`
 	SpeakerGroup []*SpeakerGroup `gorm:"many2many:speakergroup_speakers" json:"-"`
+	Active       bool            `gorm:"default:false" json:"-"`
 }
 
 type Position struct {
@@ -64,6 +65,7 @@ type SpeakerGroup struct {
 	Name       string     `gorm:"not null;size:100" json:"name"`
 	Speaker    []*Speaker `gorm:"many2many:speakergroup_speakers; constraints:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	SpeakerIds []int32    `gorm:"-" json:"speaker_ids"`
+	Active     bool       `gorm:"default:false" json:"-"`
 }
 
 type Room struct {
@@ -71,6 +73,7 @@ type Room struct {
 	Name        string     `gorm:"not null;size:100" json:"name"`
 	Description string     `json:"description"`
 	Dimensions  Dimensions `gorm:"embedded" json:"position"`
+	Active      bool       `gorm:"default:false" json:"-"`
 	CreatedAt   time.Time
 }
 

@@ -30,4 +30,5 @@ var (
 	CLIE001 = Error{Code: "CLIE001", Message: "Speaker/s not active"}
 	CLIE002 = Error{Code: "CLIE002", Message: "Error sending Request to client"}
 	CLIE003 = Error{Code: "CLIE003", Message: "Error creating Session. Aborting playback!"}
+	CLIE004 = Error{Code: "CLIE004", Message: "Error decoding Client Response"}
 )

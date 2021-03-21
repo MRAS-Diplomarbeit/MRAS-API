@@ -148,6 +148,33 @@ func (env *Env) GetSpeaker(c *gin.Context) {
 	c.JSON(http.StatusOK, speaker)
 }
 
+func (env *Env) RemoveSpeaker(c *gin.Context) {
+
+	var speaker mysql.Speaker
+
+	tmp, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
+		return
+	}
+	speaker.ID = int32(tmp)
+
+	//err = db.Model(&mysql.Permissions{}).Association("Speakers").Delete(&speaker)
+	//if err != nil {
+	//	Log.WithField("module", "sql").WithError(err)
+	//	c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+	//	return
+	//}
+
+	result := env.db.Delete(&speaker)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+}
+
 func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 
 	type playbackClientReq struct {
@@ -233,6 +260,12 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 
 			res.Body.Close()
 		} else {
+			result = env.db.Model(&speaker).Update("active", true)
+			if result.Error != nil {
+				Log.WithField("module", "sql").WithError(result.Error)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+				return
+			}
 			return
 		}
 		c.JSON(http.StatusInternalServerError, errs.CLIE003)
@@ -317,33 +350,169 @@ func (env *Env) StopPlaybackSpeaker(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
+
+		result = env.db.Model(&session.Speaker).Update("active", false)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
 	}
 
 }
 
-func (env *Env) RemoveSpeaker(c *gin.Context) {
+func (env *Env) ActiveSpeaker(c *gin.Context) {
+
+	type activeRes struct {
+		Active string `json:"active"`
+	}
 
 	var speaker mysql.Speaker
 
-	tmp, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		Log.WithField("module", "handler").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.RQST001)
-		return
-	}
-	speaker.ID = int32(tmp)
-
-	//err = db.Model(&mysql.Permissions{}).Association("Speakers").Delete(&speaker)
-	//if err != nil {
-	//	Log.WithField("module", "sql").WithError(err)
-	//	c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
-	//	return
-	//}
-
-	result := env.db.Delete(&speaker)
+	result := env.db.Where("id = ?", c.Param("id")).Find(&speaker)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
+	}
+
+	if speaker.Active {
+		c.JSON(http.StatusOK, activeRes{Active: "active"})
+		return
+	}
+
+	var exists int64
+
+	result = env.db.Model(&mysql.SpeakerGroup{}).Where("(active = true) and id in (select speaker_group_id from speakergroup_speakers where speaker_id = ?)", speaker.ID).Count(&exists)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+	if exists > 0 {
+		c.JSON(http.StatusOK, activeRes{Active: "inuse"})
+		return
+	}
+
+	c.JSON(http.StatusOK, activeRes{Active: "inactive"})
+}
+
+func (env *Env) GetSpeakerPlaybackMethods(c *gin.Context) {
+
+	type speakerMethodsRes struct {
+		Methods []string `json:"methods"`
+	}
+
+	var speaker mysql.Speaker
+
+	result := env.db.Where("id = ?", c.Param("id")).Find(&speaker)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	res, err := utils.DispatchRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "GET", nil)
+	if err != nil {
+		Log.WithField("module", "client").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
+		return
+	}
+	defer res.Body.Close()
+
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE004)
+		return
+	}
+
+	if res.StatusCode == 200 {
+
+		var playbackMethods speakerMethodsRes
+
+		err = json.Unmarshal(jsonData, &playbackMethods)
+		if err != nil {
+			Log.WithField("module", "handler").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE004)
+			return
+		}
+
+		c.JSON(http.StatusOK, &playbackMethods)
+	} else {
+
+		var clientError errs.Error
+
+		err = json.Unmarshal(jsonData, &clientError)
+		if err != nil {
+			Log.WithField("module", "handler").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE004)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, clientError)
+
+	}
+
+}
+
+func (env *Env) SetSpeakerPlaybackMethod(c *gin.Context) {
+
+	type setMethodReq struct {
+		Method string `json:"method"`
+	}
+
+	//decode request body
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var method setMethodReq
+	err = json.Unmarshal(jsonData, &method)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.RQST001)
+		return
+	}
+
+	var speaker mysql.Speaker
+
+	result := env.db.Where("id = ?", c.Param("id")).Find(&speaker)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	res, err := utils.DispatchRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", "PUT", method)
+	if err != nil {
+		Log.WithField("module", "client").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
+		return
+	}
+	defer res.Body.Close()
+
+	clientJsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		Log.WithField("module", "handler").WithError(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE004)
+		return
+	}
+
+	if res.StatusCode != 200 {
+
+		var clientError errs.Error
+
+		err = json.Unmarshal(clientJsonData, &clientError)
+		if err != nil {
+			Log.WithField("module", "handler").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE004)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, clientError)
 	}
 }

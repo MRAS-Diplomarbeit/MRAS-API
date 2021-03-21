@@ -53,6 +53,8 @@ func SetupApiRouter() *gin.Engine {
 	authRouter.GET("/room/:id", env.GetRoom)
 	authRouter.DELETE("/room/:id", env.DeleteRoom)
 
+	authRouter.GET("/room/:id/active", env.ActiveRoom)
+
 	authRouter.POST("/room/:id/playback", env.EnablePlaybackRoom)
 	authRouter.DELETE("/room/:id/playback", env.StopPlaybackRoom)
 
@@ -61,14 +63,21 @@ func SetupApiRouter() *gin.Engine {
 	authRouter.GET("/speaker/:id", env.GetSpeaker)
 	authRouter.DELETE("/speaker/:id", env.RemoveSpeaker)
 
+	authRouter.GET("/speaker/:id/active", env.ActiveSpeaker)
+
 	authRouter.POST("/speaker/:id/playback", env.EnablePlaybackSpeaker)
 	authRouter.DELETE("/speaker/:id/playback", env.StopPlaybackSpeaker)
+
+	authRouter.GET("/speaker/:id/playback/method", env.GetSpeakerPlaybackMethods)
+	authRouter.POST("/speaker/:id/playback/method", env.SetSpeakerPlaybackMethod)
 
 	authRouter.GET("/group/speaker", env.GetAllSpeakerGroups)
 	authRouter.POST("/group/speaker", env.CreateSpeakerGroup)
 	authRouter.GET("/group/speaker/:id", env.GetSpeakerGroup)
 	authRouter.PATCH("/group/speaker/:id", env.UpdateSpeakerGroup)
 	authRouter.DELETE("/group/speaker/:id", env.DeleteSpeakerGroup)
+
+	authRouter.GET("/group/speaker/:id/active", env.ActiveSpeakerGroup)
 
 	authRouter.POST("/group/speaker/:id/playback", env.EnablePlaybackSpeakerGroup)
 	authRouter.DELETE("/group/speaker/:id/playback", env.StopPlaybackSpeakerGroup)

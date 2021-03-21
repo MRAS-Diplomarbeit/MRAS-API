@@ -255,6 +255,12 @@ func (env *Env) EnablePlaybackRoom(c *gin.Context) {
 
 			_ = res2.Body.Close()
 		} else {
+			result = env.db.Model(&room).Update("active", true)
+			if result.Error != nil {
+				Log.WithField("module", "sql").WithError(result.Error)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+				return
+			}
 			return
 		}
 		c.JSON(http.StatusInternalServerError, errs.CLIE003)
@@ -341,5 +347,36 @@ func (env *Env) StopPlaybackRoom(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
+
+		result = env.db.Model(&room).Update("active", false)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(result.Error)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+
 	}
+}
+
+func (env *Env) ActiveRoom(c *gin.Context) {
+
+	type activeRes struct {
+		Active string `json:"active"`
+	}
+
+	var room mysql.Room
+
+	result := env.db.Where("id = ?", c.Param("id")).Find(&room)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	if room.Active {
+		c.JSON(http.StatusOK, activeRes{Active: "active"})
+		return
+	}
+
+	c.JSON(http.StatusOK, activeRes{Active: "inactive"})
 }

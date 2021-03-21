@@ -327,7 +327,13 @@ func (env *Env) StopPlaybackSpeakerGroup(c *gin.Context) {
 
 	var session mysql.Sessions
 
-	result = env.db.Model(&session).Where("speaker_id = @speakerid or id = (select sessions_id from session_speakers where session_speakers.speaker_id = @speakerid)", sql.Named("speakerid", speakerGroup.Speaker[1].ID)).Preload(clause.Associations).Find(&session)
+	var speakerIds []int32
+
+	for _, speaker := range speakerGroup.Speaker {
+		speakerIds = append(speakerIds, speaker.ID)
+	}
+
+	result = env.db.Where("id = (select sessions_id from session_speakers where speaker_id in ?)", speakerIds).Preload(clause.Associations).Find(&session)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -337,7 +343,6 @@ func (env *Env) StopPlaybackSpeakerGroup(c *gin.Context) {
 	for _, speaker := range session.Speakers {
 		session.SpeakerIPs = append(session.SpeakerIPs, speaker.IPAddress)
 	}
-	Log.Debug(session.Speakers)
 
 	stopPlaybackReqBody := stopPlaybackReq{session.SpeakerIPs}
 
@@ -374,5 +379,4 @@ func (env *Env) StopPlaybackSpeakerGroup(c *gin.Context) {
 			return
 		}
 	}
-
 }

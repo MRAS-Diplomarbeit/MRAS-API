@@ -54,10 +54,10 @@ func InitLogger() {
 
 	Log.AddHook(lfshook.NewHook(
 		&lumberjack.Logger{
-			Filename:   config.LogLocation,
-			MaxSize:    25,   // megabytes
-			MaxBackups: 28,   //days
-			Compress:   true, // disabled by default
+			Filename: config.LogLocation + "log.txt",
+			MaxSize:  config.LogMaxSize, // megabytes
+			MaxAge:   config.LogMaxAge,  //days
+			Compress: true,              // disabled by default
 		},
 		&logrus.JSONFormatter{
 			TimestampFormat: "2006-01-02 15:04:05",

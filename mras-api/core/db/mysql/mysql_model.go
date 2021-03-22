@@ -63,7 +63,7 @@ type Position struct {
 type SpeakerGroup struct {
 	ID         int32      `gorm:"primaryKey;autoIncrement:true;unique" json:"id"`
 	Name       string     `gorm:"not null;size:100" json:"name"`
-	Speaker    []*Speaker `gorm:"many2many:speakergroup_speakers; constraints:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
+	Speakers   []*Speaker `gorm:"many2many:speakergroup_speakers; constraints:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	SpeakerIds []int32    `gorm:"-" json:"speaker_ids"`
 	Active     bool       `gorm:"default:false" json:"-"`
 }

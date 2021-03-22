@@ -35,7 +35,7 @@ func (env *Env) GetAllSpeakerGroups(c *gin.Context) {
 	}
 
 	for i := 0; i < len(groups); i++ {
-		for _, speaker := range groups[i].Speaker {
+		for _, speaker := range groups[i].Speakers {
 			groups[i].SpeakerIds = append(groups[i].SpeakerIds, speaker.ID)
 		}
 	}
@@ -71,7 +71,7 @@ func (env *Env) CreateSpeakerGroup(c *gin.Context) {
 	speakergroup.Name = request.Name
 	speakergroup.SpeakerIds = request.SpeakerIds
 
-	result := env.db.Find(&speakergroup.Speaker, speakergroup.SpeakerIds)
+	result := env.db.Find(&speakergroup.Speakers, speakergroup.SpeakerIds)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -115,7 +115,7 @@ func (env *Env) UpdateSpeakerGroup(c *gin.Context) {
 	var orgGroup mysql.SpeakerGroup
 	orgGroup.ID = request.ID
 
-	result := env.db.Find(&orgGroup)
+	result := env.db.Preload(clause.Associations).Find(&orgGroup)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusBadRequest, errs.DBSQ001)
@@ -128,11 +128,11 @@ func (env *Env) UpdateSpeakerGroup(c *gin.Context) {
 
 	if request.SpeakerIds != nil {
 		if len(request.SpeakerIds) == 0 {
-			orgGroup.Speaker = nil
+			orgGroup.Speakers = nil
 		} else {
-			orgGroup.Speaker = nil
+			orgGroup.Speakers = nil
 			orgGroup.SpeakerIds = request.SpeakerIds
-			result = env.db.Find(&orgGroup.Speaker, orgGroup.SpeakerIds)
+			result = env.db.Find(&orgGroup.Speakers, orgGroup.SpeakerIds)
 			if result.Error != nil {
 				Log.WithField("module", "sql").WithError(result.Error)
 				c.AbortWithStatusJSON(http.StatusBadRequest, errs.DBSQ001)
@@ -141,15 +141,23 @@ func (env *Env) UpdateSpeakerGroup(c *gin.Context) {
 		}
 	}
 
+	if request.SpeakerIds != nil {
+		err = env.db.Model(&orgGroup).Association("Speakers").Replace(&orgGroup.Speakers)
+		if err != nil {
+			Log.WithField("module", "sql").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
+	}
+
 	result = env.db.Save(&orgGroup)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
-		c.AbortWithStatusJSON(http.StatusBadRequest, errs.DBSQ001)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 		return
 	}
 
 	c.JSON(http.StatusOK, &orgGroup)
-
 }
 
 func (env *Env) GetSpeakerGroup(c *gin.Context) {
@@ -171,7 +179,7 @@ func (env *Env) GetSpeakerGroup(c *gin.Context) {
 		return
 	}
 
-	for _, speaker := range group.Speaker {
+	for _, speaker := range group.Speakers {
 		group.SpeakerIds = append(group.SpeakerIds, speaker.ID)
 	}
 
@@ -249,7 +257,7 @@ func (env *Env) EnablePlaybackSpeakerGroup(c *gin.Context) {
 	clientReq.DisplayName = request.DisplayName
 	clientReq.MulticastIP = utils.GenerateMulticastIP()
 
-	for _, speaker := range speakerGroup.Speaker {
+	for _, speaker := range speakerGroup.Speakers {
 		if speaker.Alive {
 			clientReq.DeviceIPs = append(clientReq.DeviceIPs, speaker.IPAddress)
 		}
@@ -267,11 +275,11 @@ func (env *Env) EnablePlaybackSpeakerGroup(c *gin.Context) {
 
 		var session mysql.Sessions
 
-		session.Speaker = *speakerGroup.Speaker[0]
+		session.Speaker = *speakerGroup.Speakers[0]
 		session.DisplayName = request.DisplayName
 		session.Method = request.Method
 		session.MulticastIP = clientReq.MulticastIP
-		session.Speakers = speakerGroup.Speaker
+		session.Speakers = speakerGroup.Speakers
 
 		result = env.db.Save(&session)
 		if result.Error != nil {
@@ -335,7 +343,7 @@ func (env *Env) StopPlaybackSpeakerGroup(c *gin.Context) {
 
 	var speakerIds []int32
 
-	for _, speaker := range speakerGroup.Speaker {
+	for _, speaker := range speakerGroup.Speakers {
 		speakerIds = append(speakerIds, speaker.ID)
 	}
 

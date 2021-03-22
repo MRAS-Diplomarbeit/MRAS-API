@@ -10,9 +10,11 @@ var (
 	AppPort          int
 	JWTAccessSecret  string
 	JWTRefreshSecret string
+	ClientPort       int
 	Loglevel         string
 	LogLocation      string
-	ClientPort       int
+	LogMaxSize       int
+	LogMaxAge        int
 )
 
 var (
@@ -21,31 +23,7 @@ var (
 )
 
 func LoadConfig(path string) {
-	v1, _ := readConfig(".env", path, map[string]interface{}{
-		"port":             3000,
-		"jwtAccessSecret":  "ABCDEF",
-		"jwtRefreshSecret": "ABCDEFG",
-		"logfile":          "log.txt",
-		"logLevel":         "info",
-		"app": map[string]interface{}{
-			"port": 3000,
-		},
-		"client": map[string]interface{}{
-			"port": 3001,
-		},
-		"mysql": map[string]interface{}{
-			"host":     "localhost",
-			"port":     3306,
-			"user":     "root",
-			"password": "Passwort123!",
-			"dbname":   "mras",
-		}, "redis": map[string]interface{}{
-			"host":     "localhost",
-			"port":     6379,
-			"password": "",
-			"db":       0,
-		},
-	})
+	v1, _ := readConfig("config", path, nil)
 
 	AppPort = v1.GetInt("server.app.port")
 	ClientPort = v1.GetInt("server.client.port")
@@ -53,8 +31,11 @@ func LoadConfig(path string) {
 	Redis = v1.GetStringMap("server.redis")
 	JWTAccessSecret = v1.GetString("server.jwtAccessSecret")
 	JWTRefreshSecret = v1.GetString("server.jwtRefreshSecret")
-	Loglevel = v1.GetString("server.logLevel")
-	LogLocation = v1.GetString("server.logfile")
+
+	LogLocation = v1.GetString("logs.path")
+	Loglevel = v1.GetString("logs.level")
+	LogMaxSize = v1.GetInt("logs.maxSize")
+	LogMaxAge = v1.GetInt("logs.maxAge")
 
 	ClientBackendPort = v1.GetInt("client.client-backend.port")
 	ClientBackendPath = v1.GetString("client.client-backend.path")

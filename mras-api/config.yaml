@@ -1,8 +1,6 @@
 server:
   jwtAccessSecret: "ABCDEF"
   jwtRefreshSecret: "ABCDEF"
-  logfile: "log.txt"
-  logLevel: "INFO"
   app:
     port: 3000
   client:
@@ -28,3 +26,8 @@ client:
     port: 3020
     protocol: "http"
     path: "/api/v1/listen"
+logs:
+  path: "./"
+  level: "INFO"
+  maxSize: 10
+  maxAge: 10

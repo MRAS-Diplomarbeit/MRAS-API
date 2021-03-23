@@ -5,50 +5,63 @@ import (
 	"encoding/json"
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"net/http"
-	"strings"
 )
 
-func DispatchRequest(url string, contentType string, method string, reqBody interface{}) (*http.Response, error) {
+func GetRequest(url string) (*http.Response, error) {
 	Log.WithField("module", "requestDispatch").Debug("sending Request: " + url)
-	Log.WithField("module", "requestDispatch").Debug(reqBody)
+	return http.Get(url)
+}
 
-	reqBodyJson, err := json.Marshal(reqBody)
+func PostRequest(url string, contentType string, body interface{}) (*http.Response, error) {
+	Log.WithField("module", "requestDispatch").Debug("sending Request: " + url)
+
+	reqBody, err := json.Marshal(body)
 	if err != nil {
+		Log.WithField("module", "requestDispatch").WithError(err)
 		return nil, err
 	}
 
-	Log.WithField("module", "requestDispatch").Debug(string(reqBodyJson))
+	return http.Post(url, contentType, bytes.NewBuffer(reqBody))
+}
 
-	var resp *http.Response
-	client := &http.Client{}
+func PutRequest(url string, contentType string, body interface{}) (*http.Response, error) {
+	Log.WithField("module", "requestDispatch").Debug("sending Request: " + url)
 
-	if strings.ToUpper(method) == "POST" {
-		resp, err = http.Post(url, contentType, bytes.NewBuffer(reqBodyJson))
-		if err != nil {
-			return nil, err
-		}
-	} else if strings.ToUpper(method) == "POST" {
-		resp, err = http.Get(url)
-		if err != nil {
-			return nil, err
-		}
-	} else if strings.ToUpper(method) == "DELETE" {
-		req, err := http.NewRequest("DELETE", url, bytes.NewBuffer(reqBodyJson))
-		req.Header.Add("Content-Type", contentType)
-		resp, err = client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-	} else if strings.ToUpper(method) == "PUT" {
-		req, err := http.NewRequest("PUT", url, bytes.NewBuffer(reqBodyJson))
-		req.Header.Add("Content-Type", contentType)
-		resp, err = client.Do(req)
-		if err != nil {
-			return nil, err
-		}
+	reqBody, err := json.Marshal(body)
+	if err != nil {
+		Log.WithField("module", "requestDispatch").WithError(err)
+		return nil, err
 	}
 
-	Log.WithField("module", "requestDispatch").Debug(resp)
+	client := http.Client{}
 
-	return resp, err
+	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(reqBody))
+	if err != nil {
+		Log.WithField("module", "requestDispatch").WithError(err)
+		return nil, err
+	}
+	request.Header.Set("Content-Type", contentType)
+
+	return client.Do(request)
+}
+
+func DeleteRequest(url string, contentType string, body interface{}) (*http.Response, error) {
+	Log.WithField("module", "requestDispatch").Debug("sending Request: " + url)
+
+	reqBody, err := json.Marshal(body)
+	if err != nil {
+		Log.WithField("module", "requestDispatch").WithError(err)
+		return nil, err
+	}
+
+	client := http.Client{}
+
+	request, err := http.NewRequest("DELETE", url, bytes.NewBuffer(reqBody))
+	if err != nil {
+		Log.WithField("module", "requestDispatch").WithError(err)
+		return nil, err
+	}
+	request.Header.Set("Content-Type", contentType)
+
+	return client.Do(request)
 }

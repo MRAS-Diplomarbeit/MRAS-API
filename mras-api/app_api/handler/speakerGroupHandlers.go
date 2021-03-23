@@ -71,14 +71,16 @@ func (env *Env) CreateSpeakerGroup(c *gin.Context) {
 	speakergroup.Name = request.Name
 	speakergroup.SpeakerIds = request.SpeakerIds
 
-	result := env.db.Find(&speakergroup.Speakers, speakergroup.SpeakerIds)
-	if result.Error != nil {
-		Log.WithField("module", "sql").WithError(err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
-		return
+	if len(speakergroup.SpeakerIds) > 0 {
+		result := env.db.Find(&speakergroup.Speakers, speakergroup.SpeakerIds)
+		if result.Error != nil {
+			Log.WithField("module", "sql").WithError(err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+			return
+		}
 	}
 
-	result = env.db.Save(&speakergroup)
+	result := env.db.Save(&speakergroup)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)

@@ -9,6 +9,7 @@ import (
 	errs "github.com/mras-diplomarbeit/mras-api/core/error"
 	. "github.com/mras-diplomarbeit/mras-api/core/logger"
 	"github.com/mras-diplomarbeit/mras-api/core/utils"
+	"gopkg.in/guregu/null.v4"
 	"gorm.io/gorm/clause"
 	"io/ioutil"
 	"net/http"
@@ -78,6 +79,13 @@ func (env *Env) CreateRoom(c *gin.Context) {
 
 func (env *Env) UpdateRoom(c *gin.Context) {
 
+	type reqUpdtRoom struct {
+		ID          int32            `json:"id"`
+		Name        null.String      `json:"name"`
+		Description null.String      `json:"description"`
+		Dimensions  mysql.Dimensions `json:"dimensions"`
+	}
+
 	//decode request body
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
@@ -86,7 +94,7 @@ func (env *Env) UpdateRoom(c *gin.Context) {
 		return
 	}
 
-	var request mysql.Room
+	var request reqUpdtRoom
 	err = json.Unmarshal(jsonData, &request)
 	if err != nil {
 		Log.WithField("module", "handler").WithError(err)
@@ -107,7 +115,24 @@ func (env *Env) UpdateRoom(c *gin.Context) {
 		return
 	}
 
-	result := env.db.Save(&request)
+	var orgRoom mysql.Room
+	orgRoom.ID = roomid
+	result := env.db.Model(&orgRoom).Find(&orgRoom)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusBadRequest, errs.DBSQ001)
+		return
+	}
+
+	if request.Name.Valid {
+		orgRoom.Name = request.Name.String
+	}
+	if request.Description.Valid {
+		orgRoom.Description = request.Description.String
+	}
+	orgRoom.Dimensions = request.Dimensions
+
+	result = env.db.Omit("created_at").Omit("active").Save(&orgRoom)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusBadRequest, errs.DBSQ001)

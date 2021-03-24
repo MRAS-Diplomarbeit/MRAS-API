@@ -349,7 +349,7 @@ func (env *Env) StopPlaybackSpeakerGroup(c *gin.Context) {
 		speakerIds = append(speakerIds, speaker.ID)
 	}
 
-	result = env.db.Where("id = (select sessions_id from session_speakers where speaker_id in ?)", speakerIds).Preload(clause.Associations).Find(&session)
+	result = env.db.Where("id in (select sessions_id from session_speakers where speaker_id in ?)", speakerIds).Preload(clause.Associations).Find(&session)
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)

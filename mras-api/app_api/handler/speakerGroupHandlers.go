@@ -424,5 +424,19 @@ func (env *Env) ActiveSpeakerGroup(c *gin.Context) {
 		return
 	}
 
+	var active int64
+
+	result = env.db.Model(&mysql.Speaker{}).Where("active = true and id in (select speaker_id from speakergroup_speakers where speaker_group_id = ?)", c.Param("id")).Count(&active)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	if active > 0 {
+		c.JSON(http.StatusOK, activeRes{Active: "inuse"})
+		return
+	}
+
 	c.JSON(http.StatusOK, activeRes{Active: "inactive"})
 }

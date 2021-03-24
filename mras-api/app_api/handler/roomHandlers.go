@@ -403,5 +403,20 @@ func (env *Env) ActiveRoom(c *gin.Context) {
 		return
 	}
 
+	var active int64
+
+	result = env.db.Model(&mysql.Speaker{}).Where("active = true and room_id = ?", c.Param("id")).Count(&active)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	if active > 0 {
+		c.JSON(http.StatusOK, activeRes{Active: "inuse" +
+			""})
+		return
+	}
+
 	c.JSON(http.StatusOK, activeRes{Active: "inactive"})
 }

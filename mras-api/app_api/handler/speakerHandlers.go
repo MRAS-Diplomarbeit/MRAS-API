@@ -423,7 +423,7 @@ func (env *Env) GetSpeakerPlaybackMethods(c *gin.Context) {
 	}
 	defer res.Body.Close()
 
-	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	jsonData, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		Log.WithField("module", "handler").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE004)
@@ -498,7 +498,7 @@ func (env *Env) SetSpeakerPlaybackMethod(c *gin.Context) {
 	}
 	defer res.Body.Close()
 
-	clientJsonData, err := ioutil.ReadAll(c.Request.Body)
+	clientJsonData, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		Log.WithField("module", "handler").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE004)

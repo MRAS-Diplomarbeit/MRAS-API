@@ -201,6 +201,12 @@ func (env *Env) EnablePlaybackRoom(c *gin.Context) {
 		MulticastIP string   `json:"multicast_ip"`
 	}
 
+	type playbackClientRes struct {
+		Code    int      `json:"code"`
+		Message string   `json:"message"`
+		DeadIps []string `json:"dead_ips"`
+	}
+
 	//decode request body
 	jsonData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
@@ -289,8 +295,23 @@ func (env *Env) EnablePlaybackRoom(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, errs.CLIE003)
-
 	}
+
+	var response playbackClientRes
+	_ = json.NewDecoder(res.Body).Decode(&response)
+	Log.WithField("module", "handler").Debug(response)
+
+	if res.StatusCode == 404 {
+		for _, ip := range response.DeadIps {
+			result = env.db.Model(&mysql.Speaker{}).Where("ip_address = ?", ip).Update("alive", false)
+			if result.Error != nil {
+				Log.WithField("module", "sql").WithError(result.Error)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+				return
+			}
+		}
+	}
+	c.JSON(res.StatusCode, errs.Error{Code: strconv.Itoa(response.Code), Message: response.Message})
 }
 
 func (env *Env) StopPlaybackRoom(c *gin.Context) {

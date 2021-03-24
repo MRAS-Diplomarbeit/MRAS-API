@@ -58,6 +58,8 @@ func SetupApiRouter() *gin.Engine {
 	authRouter.POST("/room/:id/playback", env.EnablePlaybackRoom)
 	authRouter.DELETE("/room/:id/playback", env.StopPlaybackRoom)
 
+	authRouter.GET("/room/:id/speakers", env.GetSpeakersInRoom)
+
 	authRouter.GET("/speaker", env.GetAllSpeakers)
 	authRouter.PATCH("/speaker", env.UpdateSpeaker)
 	authRouter.GET("/speaker/:id", env.GetSpeaker)

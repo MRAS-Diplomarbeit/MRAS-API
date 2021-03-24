@@ -420,3 +420,25 @@ func (env *Env) ActiveRoom(c *gin.Context) {
 
 	c.JSON(http.StatusOK, activeRes{Active: "inactive"})
 }
+
+func (env *Env) GetSpeakersInRoom(c *gin.Context) {
+
+	type getSpeakersReq struct {
+		Count    int             `json:"count"`
+		Speakers []mysql.Speaker `json:"speakers"`
+	}
+
+	var response getSpeakersReq
+
+	result := env.db.Model(&mysql.Speaker{}).Where("room_id = ?", c.Param("id")).Preload(clause.Associations).Find(&response.Speakers)
+	if result.Error != nil {
+		Log.WithField("module", "sql").WithError(result.Error)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
+		return
+	}
+
+	response.Count = len(response.Speakers)
+
+	c.JSON(http.StatusOK, response)
+
+}

@@ -227,7 +227,7 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 
 	clientreq := playbackClientReq{Method: request.Method, DisplayName: request.DisplayName, DeviceIPs: []string{}, MulticastIP: ""}
 
-	res, err := utils.PostRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", clientreq)
+	res, err := utils.PostRequest(config.ClientBackendProtocol+"://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPlaybackPath, "application/json", clientreq)
 	if err != nil {
 		Log.WithField("module", "client").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
@@ -254,7 +254,7 @@ func (env *Env) EnablePlaybackSpeaker(c *gin.Context) {
 			stopreq := stopPlayback{}
 			stopreq.IPs = append(stopreq.IPs, speaker.IPAddress)
 
-			res, err := utils.DeleteRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", stopreq)
+			res, err := utils.DeleteRequest(config.ClientBackendProtocol+"://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPlaybackPath, "application/json", stopreq)
 			if err != nil {
 				Log.WithField("module", "client").WithError(err)
 				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
@@ -321,7 +321,7 @@ func (env *Env) StopPlaybackSpeaker(c *gin.Context) {
 
 	stopPlaybackReqBody := stopPlaybackReq{session.SpeakerIPs}
 
-	res, err := utils.DeleteRequest("http://"+session.Speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+"/api/v1/playback", "application/json", stopPlaybackReqBody)
+	res, err := utils.DeleteRequest(config.ClientBackendProtocol+"://"+session.Speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+"/api/v1/playback", "application/json", stopPlaybackReqBody)
 	if err != nil {
 		Log.WithField("module", "client").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
@@ -415,7 +415,7 @@ func (env *Env) GetSpeakerPlaybackMethods(c *gin.Context) {
 		return
 	}
 
-	res, err := utils.GetRequest("http://" + speaker.IPAddress + ":" + strconv.Itoa(config.ClientBackendPort) + "/api/v1/method")
+	res, err := utils.GetRequest(config.ClientBackendProtocol + "://" + speaker.IPAddress + ":" + strconv.Itoa(config.ClientBackendPort) + config.ClientBackendMethodPath)
 	if err != nil {
 		Log.WithField("module", "client").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
@@ -490,7 +490,7 @@ func (env *Env) SetSpeakerPlaybackMethod(c *gin.Context) {
 		return
 	}
 
-	res, err := utils.PutRequest("http://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+"/api/v1/method", "application/json", method)
+	res, err := utils.PutRequest(config.ClientBackendProtocol+"://"+speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendMethodPath, "application/json", method)
 	if err != nil {
 		Log.WithField("module", "client").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)

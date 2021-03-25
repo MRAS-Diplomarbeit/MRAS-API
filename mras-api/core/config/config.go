@@ -18,8 +18,10 @@ var (
 )
 
 var (
-	ClientBackendPort int
-	ClientBackendPath string
+	ClientBackendPort         int
+	ClientBackendPlaybackPath string
+	ClientBackendMethodPath   string
+	ClientBackendProtocol     string
 )
 
 func LoadConfig(path string) {
@@ -38,7 +40,9 @@ func LoadConfig(path string) {
 	LogMaxAge = v1.GetInt("logs.maxAge")
 
 	ClientBackendPort = v1.GetInt("client.client-backend.port")
-	ClientBackendPath = v1.GetString("client.client-backend.path")
+	ClientBackendPlaybackPath = v1.GetString("client.client-backend.path-playback")
+	ClientBackendMethodPath = v1.GetString("client.client-backend.path-method")
+	ClientBackendProtocol = v1.GetString("client.client-backend.protocol")
 }
 
 func readConfig(filename string, path string, defaults map[string]interface{}) (*viper.Viper, error) {

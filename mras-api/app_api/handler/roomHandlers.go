@@ -252,7 +252,7 @@ func (env *Env) EnablePlaybackRoom(c *gin.Context) {
 		}
 	}
 
-	res, err := utils.PostRequest("http://"+clientReq.DeviceIPs[0]+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", clientReq)
+	res, err := utils.PostRequest(config.ClientBackendProtocol+"://"+clientReq.DeviceIPs[0]+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPlaybackPath, "application/json", clientReq)
 	if err != nil {
 		Log.WithField("module", "client").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
@@ -277,7 +277,7 @@ func (env *Env) EnablePlaybackRoom(c *gin.Context) {
 				IPs []string `json:"ips"`
 			}
 
-			res2, err := utils.DeleteRequest("http://"+clientReq.DeviceIPs[0]+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath, "application/json", stopPlayback{})
+			res2, err := utils.DeleteRequest(config.ClientBackendProtocol+"://"+clientReq.DeviceIPs[0]+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPlaybackPath, "application/json", stopPlayback{})
 			if err != nil {
 				Log.WithField("module", "client").WithError(err)
 				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.CLIE002)
@@ -360,7 +360,7 @@ func (env *Env) StopPlaybackRoom(c *gin.Context) {
 
 	stopPlaybackReqBody := stopPlaybackReq{session.SpeakerIPs}
 
-	res, err := utils.DeleteRequest("http://"+session.Speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPath,
+	res, err := utils.DeleteRequest(config.ClientBackendProtocol+"://"+session.Speaker.IPAddress+":"+strconv.Itoa(config.ClientBackendPort)+config.ClientBackendPlaybackPath,
 		"application/json", stopPlaybackReqBody)
 	if err != nil {
 		Log.WithField("module", "client").WithError(err)

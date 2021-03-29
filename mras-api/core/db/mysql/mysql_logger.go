@@ -21,7 +21,16 @@ type logger struct {
 	SkipErrRecordNotFound bool
 }
 
+var (
+	tokenRegex *regexp.Regexp
+	resetRegex *regexp.Regexp
+)
+
 func NewLogger() *logger {
+
+	tokenRegex = regexp.MustCompile(`('([A-Za-z0-9-_=]{4,}\.[A-Za-z0-9-_=]{4,}\.[A-Za-z0-9-_.+=]{4,})')`)
+	resetRegex = regexp.MustCompile(`('(\w+(-|')){10})`)
+
 	return &logger{
 		SkipErrRecordNotFound: true,
 	}
@@ -49,12 +58,10 @@ func (l *logger) Trace(ctx context.Context, begin time.Time, fc func() (string, 
 	fields := logrus.Fields{"module": "gorm"}
 
 	//remove JWT-Tokens from Log
-	var re = regexp.MustCompile(`('([A-Za-z0-9-_=]{4,}\.[A-Za-z0-9-_=]{4,}\.[A-Za-z0-9-_.+=]{4,})')`)
-	cleansql := re.ReplaceAllString(sql, `TOKEN`)
+	cleansql := tokenRegex.ReplaceAllString(sql, `TOKEN`)
 
 	//remove reset-code from Log
-	re = regexp.MustCompile(`('(\w+(-|')){10})`)
-	cleansql = re.ReplaceAllString(cleansql, `RESETCODE`)
+	cleansql = resetRegex.ReplaceAllString(cleansql, `RESETCODE`)
 
 	if l.SourceField != "" {
 		fields[l.SourceField] = utils.FileWithLineNum()

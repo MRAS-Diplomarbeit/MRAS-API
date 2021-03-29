@@ -49,7 +49,7 @@ func (l *logger) Trace(ctx context.Context, begin time.Time, fc func() (string, 
 	fields := logrus.Fields{"module": "gorm"}
 
 	//remove JWT-Tokens from Log
-	var re = regexp.MustCompile(`('([A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=])+')`)
+	var re = regexp.MustCompile(`('([A-Za-z0-9-_=]{4,}\.[A-Za-z0-9-_=]{4,}\.[A-Za-z0-9-_.+=]{4,})')`)
 	cleansql := re.ReplaceAllString(sql, `TOKEN`)
 
 	//remove reset-code from Log

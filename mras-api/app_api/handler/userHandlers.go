@@ -515,16 +515,16 @@ func (env *Env) GetAllUsers(c *gin.Context) {
 	}
 
 	//Add GroupIDs
-	for _, user := range users {
-		err := env.db.Model(&user).Association("UserGroups").Find(&user.UserGroups)
+	for i := 0; i < len(users); i++ {
+		err := env.db.Model(&users[i]).Association("UserGroups").Find(&users[i].UserGroups)
 		if err != nil {
 			Log.WithField("module", "sql").WithError(err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
 			return
 		}
 
-		for _, group := range user.UserGroups {
-			user.UserGroupIDs = append(user.UserGroupIDs, group.ID)
+		for _, group := range users[i].UserGroups {
+			users[i].UserGroupIDs = append(users[i].UserGroupIDs, group.ID)
 		}
 	}
 

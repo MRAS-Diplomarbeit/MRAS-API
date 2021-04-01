@@ -21,13 +21,13 @@ type AuthCustomClaims struct {
 
 type jwtServices struct {
 	secretKey string
-	issure    string
+	issuer    string
 }
 
 func JWTAuthService(secret string) JWTService {
 	return &jwtServices{
 		secretKey: secret,
-		issure:    "mras-api",
+		issuer:    "mras-api",
 	}
 }
 
@@ -37,7 +37,7 @@ func (service *jwtServices) GenerateToken(userID int32, deviceID string, lifetim
 		deviceID,
 		jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(lifetime).Unix(),
-			Issuer:    service.issure,
+			Issuer:    service.issuer,
 			IssuedAt:  time.Now().Unix(),
 		},
 	}

@@ -263,7 +263,7 @@ func (env *Env) RegisterUser(c *gin.Context) {
 	}
 
 	//Generate RefreshToken
-	refreshToken, err := utils.JWTAuthService(config.JWTAccessSecret).GenerateToken(user.ID, request.DeviceID, time.Hour*24)
+	refreshToken, err := utils.JWTAuthService(config.JWTRefreshSecret).GenerateToken(user.ID, request.DeviceID, time.Hour*24)
 	if err != nil {
 		Log.WithField("module", "jwt").WithError(err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.AUTH002)
@@ -313,7 +313,7 @@ func (env *Env) GenerateAccessToken(c *gin.Context) {
 	user := mysql.User{}
 	user.RefreshToken = request.RefreshToken
 
-	token, _ := utils.JWTAuthService(config.JWTAccessSecret).ValidateToken(user.RefreshToken)
+	token, _ := utils.JWTAuthService(config.JWTRefreshSecret).ValidateToken(user.RefreshToken)
 	if token == nil || !token.Valid {
 		Log.WithField("module", "handler").Error("Invalid JWT Token")
 		c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH005)

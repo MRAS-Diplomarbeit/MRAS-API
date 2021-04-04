@@ -29,7 +29,6 @@ func (env *Env) GetAllSpeakers(c *gin.Context) {
 
 	//Get all Speakers from Database
 	result := env.db.Where("speakers.id in (select speaker_id from speaker_user_perms where user_id = @userid) and speakers.alive = true", sql.Named("userid", userid)).Find(&speakers)
-
 	if result.Error != nil {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errs.DBSQ001)
@@ -75,10 +74,8 @@ func (env *Env) UpdateSpeaker(c *gin.Context) {
 	reqUserId, _ := c.Get("userid")
 
 	var rights int64
-
 	result := env.db.Model(&mysql.Speaker{}).Where("speakers.id = @speakerid and (speakers.id in (select speaker_id from speaker_user_perms where user_id = @userid))",
 		sql.Named("userid", reqUserId), sql.Named("speakerid", updtSpeaker.ID.Int64)).Count(&rights)
-
 	if rights == 0 {
 		Log.WithField("module", "sql").WithError(result.Error)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH009)

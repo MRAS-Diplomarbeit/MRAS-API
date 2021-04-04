@@ -190,8 +190,8 @@ func (env *Env) UpdateUserGroup(c *gin.Context) {
 		return
 	}
 
-	if error := env.updatePermissions(&ogUserGroup.Permissions, updtUserGroup.Perms); error != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, error)
+	if permErr := env.updatePermissions(&ogUserGroup.Permissions, updtUserGroup.Perms); permErr != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, permErr)
 		return
 	}
 

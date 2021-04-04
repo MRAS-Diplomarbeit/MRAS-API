@@ -38,14 +38,14 @@ func AuthMiddleware() gin.HandlerFunc {
 			userid := int32(claims["userid"].(float64))
 			deviceid := claims["deviceid"]
 
-			redistoken, err := rdis.Get(fmt.Sprint(userid))
+			redisToken, err := rdis.Get(fmt.Sprint(userid))
 			if err != nil {
-				Log.WithFields(logrus.Fields{"module": "middleware"}).Warn("JWT not Found in Reids (Epxired)")
+				Log.WithFields(logrus.Fields{"module": "middleware"}).Warn("JWT not Found in Redis (Expired)")
 				c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH002)
 				return
 			}
 
-			if redistoken != tokenString {
+			if redisToken != tokenString {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, errs.AUTH002)
 				return
 			}

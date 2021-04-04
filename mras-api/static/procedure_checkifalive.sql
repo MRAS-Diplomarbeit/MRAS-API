@@ -1,8 +1,10 @@
 create
     procedure checkifalive()
 begin
-    declare speaker_id int; declare diff int; declare finished integer default 0;
-    declare curId cursor for SELECT id from speakers; declare continue handler for not found set finished = 1;
+    declare speaker_id int; declare diff int;
+    declare finished integer default 0;
+    declare curId cursor for SELECT id from speakers;
+    declare continue handler for not found set finished = 1;
     open curId;
     updAlive:
     loop

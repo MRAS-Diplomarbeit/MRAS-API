@@ -34,7 +34,7 @@ func (env *Env) GetAllSpeakerGroups(c *gin.Context) {
 		return
 	}
 
-	for i := 0; i < len(groups); i++ {
+	for i := range groups {
 		for _, speaker := range groups[i].Speakers {
 			groups[i].SpeakerIds = append(groups[i].SpeakerIds, speaker.ID)
 		}
